@@ -104,7 +104,6 @@ Debug_x64/
 diag.txt
 ipch
 lib/*
-out
 patches-*
 Release/
 Release_ARM/
