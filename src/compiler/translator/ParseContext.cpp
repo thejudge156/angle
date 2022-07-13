@@ -4180,7 +4180,7 @@ TFunctionLookup *TParseContext::addNonConstructorFunc(const ImmutableString &nam
 
 TFunctionLookup *TParseContext::addConstructorFunc(const TPublicType &publicType)
 {
-    if (mShaderVersion < 300 && publicType.isArray() && !IsDesktopGLSpec(mShaderSpec))
+    if (mShaderVersion < 300 && publicType.isArray())
     {
         error(publicType.getLine(), "array constructor supported in GLSL ES 3.00 and above only",
               "[]");
