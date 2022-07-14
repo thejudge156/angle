@@ -316,6 +316,8 @@ angle::Result ProgramInfo::initProgram(ContextVk *contextVk,
                                        !optionBits.removeTransformFeedbackEmulation;
     options.isTransformFeedbackEmulated = contextVk->getFeatures().emulateTransformFeedback.enabled;
     options.negativeViewportSupported   = contextVk->getFeatures().supportsNegativeViewport.enabled;
+    options.isMultisampledFramebufferFetch =
+        optionBits.multiSampleFramebufferFetch && shaderType == gl::ShaderType::Fragment;
 
     ANGLE_TRY(GlslangWrapperVk::TransformSpirV(options, variableInfoMap, originalSpirvBlob,
                                                &transformedSpirvBlob));
@@ -1065,6 +1067,10 @@ angle::Result ProgramExecutableVk::getGraphicsPipeline(ContextVk *contextVk,
     transformOptions.removeTransformFeedbackEmulation =
         contextVk->getFeatures().emulateTransformFeedback.enabled &&
         !glState.isTransformFeedbackActiveUnpaused();
+    FramebufferVk *drawFrameBuffer = vk::GetImpl(contextVk->getState().getDrawFramebuffer());
+    const bool hasFramebufferFetch = glExecutable.usesFramebufferFetch();
+    const bool isMultisampled      = drawFrameBuffer->getSamples() > 1;
+    transformOptions.multiSampleFramebufferFetch = hasFramebufferFetch && isMultisampled;
 
     const gl::DrawBufferMask framebufferMask = glState.getDrawFramebuffer()->getDrawBufferMask();
 
@@ -1300,7 +1306,7 @@ angle::Result ProgramExecutableVk::getOrAllocateDescriptorSet(
     ANGLE_TRY(mDescriptorPools[setIndex].get().getOrAllocateDescriptorSet(
         context, commandBufferHelper, descriptorSetDesc.getDesc(),
         mDescriptorSetLayouts[setIndex].get(), &mDescriptorPoolBindings[setIndex],
-        &mDescriptorSets[setIndex], &cacheResult));
+        &mDescriptorSets[setIndex], nullptr, &cacheResult));
     ASSERT(mDescriptorSets[setIndex] != VK_NULL_HANDLE);
 
     if (cacheResult == vk::DescriptorCacheResult::NewAllocation)
@@ -1365,24 +1371,17 @@ angle::Result ProgramExecutableVk::updateTexturesDescriptorSet(
     vk::CommandBufferHelperCommon *commandBufferHelper,
     const vk::DescriptorSetDesc &texturesDesc)
 {
+    vk::SharedDescriptorSetCacheKey sharedCacheKey;
     vk::DescriptorCacheResult cacheResult;
     ANGLE_TRY(mDescriptorPools[DescriptorSetIndex::Texture].get().getOrAllocateDescriptorSet(
         context, commandBufferHelper, texturesDesc,
         mDescriptorSetLayouts[DescriptorSetIndex::Texture].get(),
         &mDescriptorPoolBindings[DescriptorSetIndex::Texture],
-        &mDescriptorSets[DescriptorSetIndex::Texture], &cacheResult));
+        &mDescriptorSets[DescriptorSetIndex::Texture], &sharedCacheKey, &cacheResult));
     ASSERT(mDescriptorSets[DescriptorSetIndex::Texture] != VK_NULL_HANDLE);
 
     if (cacheResult == vk::DescriptorCacheResult::NewAllocation)
     {
-        vk::SharedDescriptorSetCacheKey sharedCacheKey = CreateSharedDescriptorSetCacheKey(
-            texturesDesc, &mDescriptorPoolBindings[DescriptorSetIndex::Texture].get());
-
-        // Let each pool know there is a shared cache key created and destroys the shared cache key
-        // when it destroys the pool.
-        mDescriptorPoolBindings[DescriptorSetIndex::Texture].get().onNewDescriptorSetAllocated(
-            sharedCacheKey);
-
         vk::DescriptorSetDescBuilder fullDesc;
         ANGLE_TRY(fullDesc.updateFullActiveTextures(context, mVariableInfoMap, executable, textures,
                                                     samplers, emulateSeamfulCubeMapSampling,
