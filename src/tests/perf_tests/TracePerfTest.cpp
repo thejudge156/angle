@@ -940,14 +940,6 @@ TracePerfTest::TracePerfTest(std::unique_ptr<const TracePerfParams> params)
         addExtensionPrerequisite("GL_KHR_texture_compression_astc_ldr");
     }
 
-    if (traceNameIs("real_cricket_20"))
-    {
-        if (IsAndroid() && IsARM())
-        {
-            skipTest("TODO: http://anglebug.com/5777 ARM doesn't have enough VS storage blocks");
-        }
-    }
-
     if (traceNameIs("league_of_legends_wild_rift"))
     {
         addExtensionPrerequisite("GL_OES_EGL_image_external");
@@ -1045,16 +1037,16 @@ TracePerfTest::TracePerfTest(std::unique_ptr<const TracePerfParams> params)
     {
         addExtensionPrerequisite("GL_EXT_texture_cube_map_array");
         addExtensionPrerequisite("GL_OES_EGL_image_external");
-
-        if (IsAndroid() && IsARM())
-        {
-            skipTest("TODO: http://anglebug.com/6017 ARM doesn't have enough VS storage blocks");
-        }
     }
 
     if (traceNameIs("genshin_impact"))
     {
         addExtensionPrerequisite("GL_KHR_texture_compression_astc_ldr");
+
+        if (IsNVIDIA() && mParams->isVulkan())
+        {
+            skipTest("http://anglebug.com/7496 Nondeterministic noise between runs");
+        }
 
         if ((IsLinux() && IsIntel()) && mParams->isVulkan())
         {
@@ -1219,6 +1211,11 @@ TracePerfTest::TracePerfTest(std::unique_ptr<const TracePerfParams> params)
         if (IsWindows() && IsIntel())
         {
             skipTest("http://anglebug.com/7173 Fails on Intel HD 630 Mobile");
+        }
+
+        if (IsNVIDIA() && mParams->isVulkan())
+        {
+            skipTest("http://anglebug.com/7125 Renders incorrectly on NVIDIA");
         }
 
         addExtensionPrerequisite("GL_EXT_geometry_shader");

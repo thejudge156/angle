@@ -134,8 +134,6 @@
 
 7112 : TransformFeedbackTest.BaseInstance/* = NOT_RUN
 
-7484 : GLSLTest_ES31.Image2DAsFunctionArg/* = NOT_RUN
-
 # GLES 3.2 tests that fail because of missing features
 5366 : GeometryShaderTestES32.MaxGeometryImageUniforms/* = CRASH
 5366 : ProgramPipelineTest32.MaxGeometryImageUniforms/* = CRASH
@@ -147,7 +145,7 @@
 7291 : BlitFramebufferTest.Blit2DArrayTo3D/* = SKIP_FOR_CAPTURE
 
 7357 : FramebufferTest_ES3.FramebufferConditionalFeedbackLoop/* = SKIP_FOR_CAPTURE
-
+7499 : Texture2DTest.TextureMaxSize/* = SKIP_FOR_CAPTURE
 7373 : FramebufferTest_ES3.SurfaceDimensionsChangeAndFragCoord/* = SKIP_FOR_CAPTURE
 
 7423 : MultithreadingTest.NoFlushNoContextReturnsTimeout/* = SKIP_FOR_CAPTURE
