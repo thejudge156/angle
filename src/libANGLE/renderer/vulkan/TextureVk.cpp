@@ -317,7 +317,7 @@ void TextureVk::onDestroy(const gl::Context *context)
     ContextVk *contextVk = vk::GetImpl(context);
 
     releaseAndDeleteImageAndViews(contextVk);
-    mSampler.reset();
+    resetSampler();
 }
 
 angle::Result TextureVk::setImage(const gl::Context *context,
@@ -1320,7 +1320,7 @@ angle::Result TextureVk::copySubImageImplWithDraw(ContextVk *contextVk,
             ANGLE_TRY(stagingImage->get().initLayerImageView(
                 contextVk, stagingTextureType, VK_IMAGE_ASPECT_COLOR_BIT, gl::SwizzleState(),
                 &stagingView, vk::LevelIndex(0), 1, layerIndex, 1,
-                gl::SrgbWriteControlMode::Default));
+                gl::SrgbWriteControlMode::Default, gl::YuvSamplingMode::Default));
 
             ANGLE_TRY(utilsVk.copyImage(contextVk, &stagingImage->get(), &stagingView, srcImage,
                                         srcView, params));
@@ -1471,7 +1471,7 @@ void TextureVk::handleImmutableSamplerTransition(const vk::ImageHelper *previous
         externalFormatChanged)
     {
         // The immutable sampler state is dirty.
-        mSampler.reset();
+        resetSampler();
         mImmutableSamplerDirty = true;
     }
 }
@@ -1548,7 +1548,7 @@ angle::Result TextureVk::setBuffer(const gl::Context *context, GLenum internalFo
 {
     // No longer an image
     releaseAndDeleteImageAndViews(vk::GetImpl(context));
-    mSampler.reset();
+    resetSampler();
 
     // There's nothing else to do here.
     return angle::Result::Continue;
@@ -2853,7 +2853,7 @@ angle::Result TextureVk::syncState(const gl::Context *context,
         ASSERT(samplerState.getMinFilter() == samplerState.getMagFilter());
         if (mImage->updateChromaFilter(renderer, gl_vk::GetFilter(samplerState.getMinFilter())))
         {
-            mSampler.reset();
+            resetSampler();
             ANGLE_TRY(refreshImageViews(contextVk));
         }
     }
@@ -2865,7 +2865,7 @@ angle::Result TextureVk::syncState(const gl::Context *context,
 
     if (mSampler.valid())
     {
-        mSampler.reset();
+        resetSampler();
     }
 
     if (localBits.test(gl::Texture::DIRTY_BIT_SWIZZLE_RED) ||
@@ -2885,7 +2885,13 @@ angle::Result TextureVk::syncState(const gl::Context *context,
 
     vk::SamplerDesc samplerDesc(contextVk, mState.getSamplerState(), mState.isStencilMode(),
                                 &mImage->getYcbcrConversionDesc(), mImage->getIntendedFormatID());
+    auto y2yConversionDesc = mImage->getY2YConversionDesc();
+    vk::SamplerDesc samplerDescSamplerExternal2DY2YEXT(contextVk, mState.getSamplerState(),
+                                                       mState.isStencilMode(), &y2yConversionDesc,
+                                                       mImage->getIntendedFormatID());
     ANGLE_TRY(renderer->getSamplerCache().getSampler(contextVk, samplerDesc, &mSampler));
+    ANGLE_TRY(renderer->getSamplerCache().getSampler(contextVk, samplerDescSamplerExternal2DY2YEXT,
+                                                     &mY2YSampler));
 
     updateCachedImageViewSerials();
 
@@ -2969,7 +2975,8 @@ bool TextureVk::shouldDecodeSRGB(vk::Context *context,
 
 const vk::ImageView &TextureVk::getReadImageView(vk::Context *context,
                                                  GLenum srgbDecode,
-                                                 bool texelFetchStaticUse) const
+                                                 bool texelFetchStaticUse,
+                                                 bool samplerExternal2DY2YEXT) const
 {
     ASSERT(mImage->valid());
 
@@ -2980,7 +2987,12 @@ const vk::ImageView &TextureVk::getReadImageView(vk::Context *context,
         return imageViews.getStencilReadImageView();
     }
 
-    if (shouldDecodeSRGB(context, srgbDecode, texelFetchStaticUse))
+    if (samplerExternal2DY2YEXT)
+    {
+        ASSERT(imageViews.getSamplerExternal2DY2YEXTImageView().valid());
+        return imageViews.getSamplerExternal2DY2YEXTImageView();
+    }
+    else if (shouldDecodeSRGB(context, srgbDecode, texelFetchStaticUse))
     {
         ASSERT(imageViews.getSRGBReadImageView().valid());
         return imageViews.getSRGBReadImageView();
