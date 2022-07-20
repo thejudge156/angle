@@ -888,6 +888,7 @@ class YcbcrConversionDesc final
                 angle::FormatID intendedFormatID);
     VkFilter getChromaFilter() const { return static_cast<VkFilter>(mChromaFilter); }
     bool updateChromaFilter(RendererVk *rendererVk, VkFilter filter);
+    void updateConversionModel(VkSamplerYcbcrModelConversion conversionModel);
     uint64_t getExternalFormat() const { return mIsExternalFormat ? mExternalOrVkFormat : 0; }
 
     angle::Result init(Context *context, SamplerYcbcrConversion *conversionOut) const;
@@ -1443,10 +1444,12 @@ class DescriptorSetDescBuilder final
     // Track textures and buffers that used for this descriptorSet.
     std::vector<TextureVk *> mUsedImages;
     std::vector<BufferBlock *> mUsedBufferBlocks;
+    std::vector<BufferHelper *> mUsedBufferHelpers;
 };
 
 // Specialized update for textures.
-void UpdatePreCacheActiveTextures(const gl::ActiveTextureMask &activeTextures,
+void UpdatePreCacheActiveTextures(const std::vector<gl::SamplerBinding> &samplerBindings,
+                                  const gl::ActiveTextureMask &activeTextures,
                                   const gl::ActiveTextureArray<TextureVk *> &textures,
                                   const gl::SamplerBindingVector &samplers,
                                   DescriptorSetDesc *desc);

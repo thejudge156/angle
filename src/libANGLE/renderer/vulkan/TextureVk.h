@@ -195,6 +195,13 @@ class TextureVk : public TextureImpl, public angle::ObserverInterface
                                               GLenum binding,
                                               const gl::ImageIndex &imageIndex);
 
+    GLint getRequiredExternalTextureImageUnits([[maybe_unused]] const gl::Context *context) override
+    {
+        // For now, we assume that only one image unit is needed to support
+        // external GL textures in the Vulkan backend.
+        return 1;
+    }
+
     const vk::ImageHelper &getImage() const
     {
         ASSERT(mImage && mImage->valid());
@@ -219,7 +226,8 @@ class TextureVk : public TextureImpl, public angle::ObserverInterface
 
     const vk::ImageView &getReadImageView(vk::Context *context,
                                           GLenum srgbDecode,
-                                          bool texelFetchStaticUse) const;
+                                          bool texelFetchStaticUse,
+                                          bool samplerExternal2DY2YEXT) const;
 
     // A special view for cube maps as a 2D array, used with shaders that do texelFetch() and for
     // seamful cube map emulation.
@@ -238,10 +246,21 @@ class TextureVk : public TextureImpl, public angle::ObserverInterface
                                       const gl::ImageUnit &binding,
                                       const vk::ImageView **imageViewOut);
 
-    const vk::SamplerHelper &getSampler() const
+    const vk::SamplerHelper &getSampler(bool isSamplerExternalY2Y) const
     {
+        if (isSamplerExternalY2Y)
+        {
+            ASSERT(mY2YSampler.valid());
+            return mY2YSampler.get();
+        }
         ASSERT(mSampler.valid());
         return mSampler.get();
+    }
+
+    void resetSampler()
+    {
+        mSampler.reset();
+        mY2YSampler.reset();
     }
 
     // Normally, initialize the image with enabled mipmap level counts.
@@ -600,6 +619,9 @@ class TextureVk : public TextureImpl, public angle::ObserverInterface
     // |mSampler| contains the relevant Vulkan sampler states representing the OpenGL Texture
     // sampling states for the Texture.
     vk::SamplerBinding mSampler;
+    // |mY2YSampler| contains a version of mSampler that is meant for use with
+    // __samplerExternal2DY2YEXT (i.e., skipping conversion of YUV to RGB).
+    vk::SamplerBinding mY2YSampler;
 
     // The created vkImage usage flag.
     VkImageUsageFlags mImageUsageFlags;

@@ -4239,6 +4239,11 @@ bool YcbcrConversionDesc::updateChromaFilter(RendererVk *rendererVk, VkFilter fi
     return false;
 }
 
+void YcbcrConversionDesc::updateConversionModel(VkSamplerYcbcrModelConversion conversionModel)
+{
+    SetBitField(mConversionModel, conversionModel);
+}
+
 angle::Result YcbcrConversionDesc::init(Context *context,
                                         SamplerYcbcrConversion *conversionOut) const
 {
@@ -4729,6 +4734,7 @@ DescriptorSetDescBuilder::~DescriptorSetDescBuilder()
 {
     ASSERT(mUsedImages.empty());
     ASSERT(mUsedBufferBlocks.empty());
+    ASSERT(mUsedBufferHelpers.empty());
 }
 
 DescriptorSetDescBuilder::DescriptorSetDescBuilder(const DescriptorSetDescBuilder &other)
@@ -4737,17 +4743,19 @@ DescriptorSetDescBuilder::DescriptorSetDescBuilder(const DescriptorSetDescBuilde
       mDynamicOffsets(other.mDynamicOffsets),
       mCurrentInfoIndex(other.mCurrentInfoIndex),
       mUsedImages(other.mUsedImages),
-      mUsedBufferBlocks(other.mUsedBufferBlocks)
+      mUsedBufferBlocks(other.mUsedBufferBlocks),
+      mUsedBufferHelpers(other.mUsedBufferHelpers)
 {}
 
 DescriptorSetDescBuilder &DescriptorSetDescBuilder::operator=(const DescriptorSetDescBuilder &other)
 {
-    mDesc             = other.mDesc;
-    mHandles          = other.mHandles;
-    mDynamicOffsets   = other.mDynamicOffsets;
-    mCurrentInfoIndex = other.mCurrentInfoIndex;
-    mUsedImages       = other.mUsedImages;
-    mUsedBufferBlocks = other.mUsedBufferBlocks;
+    mDesc              = other.mDesc;
+    mHandles           = other.mHandles;
+    mDynamicOffsets    = other.mDynamicOffsets;
+    mCurrentInfoIndex  = other.mCurrentInfoIndex;
+    mUsedImages        = other.mUsedImages;
+    mUsedBufferBlocks  = other.mUsedBufferBlocks;
+    mUsedBufferHelpers = other.mUsedBufferHelpers;
     return *this;
 }
 
@@ -4759,6 +4767,7 @@ void DescriptorSetDescBuilder::reset()
     mCurrentInfoIndex = 0;
     mUsedImages.clear();
     mUsedBufferBlocks.clear();
+    mUsedBufferHelpers.clear();
 }
 
 void DescriptorSetDescBuilder::updateWriteDesc(uint32_t bindingIndex,
@@ -4888,45 +4897,58 @@ void DescriptorSetDescBuilder::updateUniformsAndXfb(Context *context,
     }
 }
 
-void UpdatePreCacheActiveTextures(const gl::ActiveTextureMask &activeTextures,
+void UpdatePreCacheActiveTextures(const std::vector<gl::SamplerBinding> &samplerBindings,
+                                  const gl::ActiveTextureMask &activeTextures,
                                   const gl::ActiveTextureArray<TextureVk *> &textures,
                                   const gl::SamplerBindingVector &samplers,
                                   DescriptorSetDesc *desc)
 {
     desc->reset();
 
-    for (size_t textureIndex : activeTextures)
+    for (uint32_t samplerIndex = 0; samplerIndex < samplerBindings.size(); ++samplerIndex)
     {
-        TextureVk *textureVk = textures[textureIndex];
-
-        DescriptorInfoDesc infoDesc = {};
-
-        if (textureVk->getState().getType() == gl::TextureType::Buffer)
+        const gl::SamplerBinding &samplerBinding = samplerBindings[samplerIndex];
+        uint32_t arraySize        = static_cast<uint32_t>(samplerBinding.boundTextureUnits.size());
+        bool isSamplerExternalY2Y = samplerBinding.samplerType == GL_SAMPLER_EXTERNAL_2D_Y2Y_EXT;
+        for (uint32_t arrayElement = 0; arrayElement < arraySize; ++arrayElement)
         {
-            ImageOrBufferViewSubresourceSerial imageViewSerial = textureVk->getBufferViewSerial();
-            infoDesc.imageViewSerialOrOffset = imageViewSerial.viewSerial.getValue();
+            size_t textureIndex = samplerBinding.boundTextureUnits[arrayElement];
+            if (!activeTextures.test(textureIndex))
+                continue;
+            TextureVk *textureVk = textures[textureIndex];
+
+            DescriptorInfoDesc infoDesc = {};
+
+            if (textureVk->getState().getType() == gl::TextureType::Buffer)
+            {
+                ImageOrBufferViewSubresourceSerial imageViewSerial =
+                    textureVk->getBufferViewSerial();
+                infoDesc.imageViewSerialOrOffset = imageViewSerial.viewSerial.getValue();
+            }
+            else
+            {
+                gl::Sampler *sampler       = samplers[textureIndex].get();
+                const SamplerVk *samplerVk = sampler ? vk::GetImpl(sampler) : nullptr;
+
+                const SamplerHelper &samplerHelper =
+                    samplerVk ? samplerVk->getSampler()
+                              : textureVk->getSampler(isSamplerExternalY2Y);
+                const gl::SamplerState &samplerState =
+                    sampler ? sampler->getSamplerState() : textureVk->getState().getSamplerState();
+
+                ImageOrBufferViewSubresourceSerial imageViewSerial =
+                    textureVk->getImageViewSubresourceSerial(samplerState);
+
+                // Layout is implicit.
+
+                infoDesc.imageViewSerialOrOffset = imageViewSerial.viewSerial.getValue();
+                infoDesc.samplerOrBufferSerial   = samplerHelper.getSamplerSerial().getValue();
+                memcpy(&infoDesc.imageSubresourceRange, &imageViewSerial.subresource,
+                       sizeof(uint32_t));
+            }
+
+            desc->updateInfoDesc(static_cast<uint32_t>(textureIndex), infoDesc);
         }
-        else
-        {
-            gl::Sampler *sampler       = samplers[textureIndex].get();
-            const SamplerVk *samplerVk = sampler ? vk::GetImpl(sampler) : nullptr;
-
-            const SamplerHelper &samplerHelper =
-                samplerVk ? samplerVk->getSampler() : textureVk->getSampler();
-            const gl::SamplerState &samplerState =
-                sampler ? sampler->getSamplerState() : textureVk->getState().getSamplerState();
-
-            ImageOrBufferViewSubresourceSerial imageViewSerial =
-                textureVk->getImageViewSubresourceSerial(samplerState);
-
-            // Layout is implicit.
-
-            infoDesc.imageViewSerialOrOffset = imageViewSerial.viewSerial.getValue();
-            infoDesc.samplerOrBufferSerial   = samplerHelper.getSamplerSerial().getValue();
-            memcpy(&infoDesc.imageSubresourceRange, &imageViewSerial.subresource, sizeof(uint32_t));
-        }
-
-        desc->updateInfoDesc(static_cast<uint32_t>(textureIndex), infoDesc);
     }
 }
 
@@ -4992,6 +5014,8 @@ angle::Result DescriptorSetDescBuilder::updateExecutableActiveTexturesForShader(
 
         updateWriteDesc(info.binding, descriptorType, descriptorCount);
 
+        bool isSamplerExternalY2Y = samplerBinding.samplerType == GL_SAMPLER_EXTERNAL_2D_Y2Y_EXT;
+
         for (uint32_t arrayElement = 0; arrayElement < arraySize; ++arrayElement)
         {
             GLuint textureUnit   = samplerBinding.boundTextureUnits[arrayElement];
@@ -5020,7 +5044,8 @@ angle::Result DescriptorSetDescBuilder::updateExecutableActiveTexturesForShader(
                 const SamplerVk *samplerVk = sampler ? vk::GetImpl(sampler) : nullptr;
 
                 const SamplerHelper &samplerHelper =
-                    samplerVk ? samplerVk->getSampler() : textureVk->getSampler();
+                    samplerVk ? samplerVk->getSampler()
+                              : textureVk->getSampler(isSamplerExternalY2Y);
                 const gl::SamplerState &samplerState =
                     sampler ? sampler->getSamplerState() : textureVk->getState().getSamplerState();
 
@@ -5039,7 +5064,10 @@ angle::Result DescriptorSetDescBuilder::updateExecutableActiveTexturesForShader(
 
                 mHandles[infoIndex].sampler = samplerHelper.get().getHandle();
 
-                if (emulateSeamfulCubeMapSampling)
+                // __samplerExternal2DY2YEXT cannot be used with
+                // emulateSeamfulCubeMapSampling because that's only enabled in GLES == 2.
+                // Use the read image view here anyway.
+                if (emulateSeamfulCubeMapSampling && !isSamplerExternalY2Y)
                 {
                     // If emulating seamful cube mapping, use the fetch image view.  This is
                     // basically the same image view as read, except it's a 2DArray view for
@@ -5051,7 +5079,8 @@ angle::Result DescriptorSetDescBuilder::updateExecutableActiveTexturesForShader(
                 else
                 {
                     const ImageView &imageView = textureVk->getReadImageView(
-                        context, samplerState.getSRGBDecode(), samplerUniform.texelFetchStaticUse);
+                        context, samplerState.getSRGBDecode(), samplerUniform.texelFetchStaticUse,
+                        isSamplerExternalY2Y);
                     mHandles[infoIndex].imageView = imageView.getHandle();
                 }
             }
@@ -5168,6 +5197,7 @@ void DescriptorSetDescBuilder::updateShaderBuffers(
             else
             {
                 SetBitField(infoDesc.imageViewSerialOrOffset, offset);
+                mUsedBufferHelpers.emplace_back(&bufferHelper);
             }
 
             mDesc.updateInfoDesc(infoDescIndex, infoDesc);
@@ -5244,6 +5274,7 @@ void DescriptorSetDescBuilder::updateAtomicCounters(
         SetBitField(infoDesc.imageLayoutOrRange, range);
         SetBitField(infoDesc.imageViewSerialOrOffset, offset);
         infoDesc.samplerOrBufferSerial = bufferHelper.getBlockSerial().getValue();
+        mUsedBufferHelpers.emplace_back(&bufferHelper);
 
         mDesc.updateInfoDesc(infoIndex, infoDesc);
         mHandles[infoIndex].buffer = bufferHelper.getBuffer().getHandle();
@@ -5440,10 +5471,15 @@ void DescriptorSetDescBuilder::updateImagesAndBuffersWithSharedCacheKey(
         {
             bufferBlock->onNewDescriptorSet(sharedCacheKey);
         }
+        for (BufferHelper *bufferHelper : mUsedBufferHelpers)
+        {
+            bufferHelper->onNewDescriptorSet(sharedCacheKey);
+        }
     }
 
     mUsedImages.clear();
     mUsedBufferBlocks.clear();
+    mUsedBufferHelpers.clear();
 }
 
 // SharedCacheKeyManager implementation.
