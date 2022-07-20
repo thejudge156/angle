@@ -118,7 +118,6 @@ void SurfaceEGL::setSwapInterval(EGLint interval)
     if (success == EGL_FALSE)
     {
         ERR() << "eglSwapInterval error " << egl::Error(mEGL->getError());
-        ASSERT(false);
     }
 }
 
