@@ -636,6 +636,15 @@ void DumpPipelineCacheGraph(ContextVk *contextVk, const std::ostringstream &grap
     out << "}\n";
 }
 
+bool BlendModeSupportsDither(const gl::State &state, size_t colorIndex)
+{
+    // Specific combinations of color blend modes are known to work with our dithering emulation.
+    // Note we specifically don't check alpha blend, as dither isn't applied to alpha.
+    // See http://b/232574868 for more discussion and reasoning.
+    return state.getBlendStateExt().getSrcColorIndexed(colorIndex) == GL_SRC_ALPHA &&
+           state.getBlendStateExt().getDstColorIndexed(colorIndex) == GL_ONE_MINUS_SRC_ALPHA;
+}
+
 }  // anonymous namespace
 
 void ContextVk::flushDescriptorSetUpdates()
@@ -758,7 +767,8 @@ ContextVk::ContextVk(const gl::State &state, gl::ErrorSet *errorSet, RendererVk 
         DIRTY_BIT_DESCRIPTOR_SETS,
         DIRTY_BIT_DRIVER_UNIFORMS_BINDING,
     };
-    if (getFeatures().supportsTransformFeedbackExtension.enabled)
+    if (getFeatures().supportsTransformFeedbackExtension.enabled ||
+        getFeatures().emulateTransformFeedback.enabled)
     {
         mNewGraphicsCommandBufferDirtyBits.set(DIRTY_BIT_TRANSFORM_FEEDBACK_BUFFERS);
     }
@@ -1016,7 +1026,7 @@ void ContextVk::onDestroy(const gl::Context *context)
 
     for (vk::DynamicDescriptorPool &dynamicDescriptorPool : mDriverUniformsDescriptorPools)
     {
-        dynamicDescriptorPool.destroy(mRenderer, VulkanCacheType::DriverUniformsDescriptors);
+        dynamicDescriptorPool.destroy(mRenderer);
     }
 
     mDefaultUniformStorage.release(mRenderer);
@@ -1141,7 +1151,7 @@ angle::Result ContextVk::initialize()
         {
             ANGLE_TRY(mDriverUniformsDescriptorPools[pipeline].init(
                 this, descriptorPoolSizes.data(), descriptorPoolSizes.size(),
-                mDriverUniforms[pipeline].descriptorSetLayout.get().getHandle()));
+                mDriverUniforms[pipeline].descriptorSetLayout.get()));
         }
     }
 
@@ -2405,6 +2415,8 @@ angle::Result ContextVk::handleDirtyGraphicsTransformFeedbackBuffersEmulation(
             mRenderPassCommands->bufferWrite(this, VK_ACCESS_SHADER_WRITE_BIT,
                                              vk::PipelineStage::VertexShader, bufferHelper);
         }
+
+        populateTransformFeedbackBufferSet(bufferCount, bufferHelpers);
     }
 
     ProgramExecutableVk *executableVk      = getExecutable();
@@ -2489,6 +2501,8 @@ angle::Result ContextVk::handleDirtyGraphicsTransformFeedbackBuffersExtension(
 
     mRenderPassCommands->beginTransformFeedback(bufferCount, counterBufferHandles.data(),
                                                 counterBufferOffsets.data(), rebindBuffers);
+
+    populateTransformFeedbackBufferSet(bufferCount, buffers);
 
     return angle::Result::Continue;
 }
@@ -4643,14 +4657,20 @@ void ContextVk::updateDither()
     uint16_t ditherControl = 0;
     if (mState.isDitherEnabled())
     {
-        // As dithering is emulated in the fragment shader itself, there are a number of situations
-        // that can lead to incorrect blending.  When blend is enabled, dither is not enabled to
-        // avoid such situations.
         const gl::DrawBufferMask attachmentMask =
-            framebufferVk->getState().getColorAttachmentsMask() &
-            ~mState.getBlendEnabledDrawBufferMask();
+            framebufferVk->getState().getColorAttachmentsMask();
+
         for (size_t colorIndex : attachmentMask)
         {
+            // As dithering is emulated in the fragment shader itself, there are a number of
+            // situations that can lead to incorrect blending.  We only allow blending with specific
+            // combinations know to not interfere with dithering.
+            if (mState.isBlendEnabledIndexed(static_cast<GLuint>(colorIndex)) &&
+                !BlendModeSupportsDither(mState, colorIndex))
+            {
+                continue;
+            }
+
             RenderTargetVk *attachment   = framebufferVk->getColorDrawRenderTarget(colorIndex);
             const angle::FormatID format = attachment->getImageActualFormatID();
 
@@ -5698,8 +5718,6 @@ angle::Result ContextVk::onBeginTransformFeedback(
     {
         ANGLE_TRY(flushCommandsAndEndRenderPass(RenderPassClosureReason::BufferUseThenXfbWrite));
     }
-
-    populateTransformFeedbackBufferSet(bufferCount, buffers);
 
     return angle::Result::Continue;
 }
@@ -6993,19 +7011,6 @@ angle::Result ContextVk::flushCommandsAndEndRenderPassImpl(QueueSubmitType queue
     mGraphicsPipelineDesc->resetSubpass(&mGraphicsPipelineTransition);
 
     mCurrentTransformFeedbackBuffers.clear();
-
-    // Reset serials for XFB if active.
-    if (mState.isTransformFeedbackActiveUnpaused())
-    {
-        const gl::ProgramExecutable *executable = mState.getProgramExecutable();
-        ASSERT(executable);
-        size_t xfbBufferCount = executable->getTransformFeedbackBufferCount();
-
-        TransformFeedbackVk *transformFeedbackVk =
-            vk::GetImpl(mState.getCurrentTransformFeedback());
-
-        populateTransformFeedbackBufferSet(xfbBufferCount, transformFeedbackVk->getBufferHelpers());
-    }
 
     onRenderPassFinished(reason);
 

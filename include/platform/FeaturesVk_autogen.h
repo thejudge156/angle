@@ -221,11 +221,6 @@ struct FeaturesVk : FeatureSetBase
         "disableFifoPresentMode", FeatureCategory::VulkanWorkarounds,
         "VK_PRESENT_MODE_FIFO_KHR causes random timeouts", &members, "http://anglebug.com/3153"};
 
-    FeatureInfo bindEmptyForUnusedDescriptorSets = {
-        "bindEmptyForUnusedDescriptorSets", FeatureCategory::VulkanWorkarounds,
-        "Gaps in bound descriptor set indices causes the post-gap sets to misbehave", &members,
-        "http://anglebug.com/2727"};
-
     FeatureInfo forceD16TexFilter = {
         "forceD16TexFilter", FeatureCategory::VulkanWorkarounds,
         "VK_FORMAT_D16_UNORM does not support VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT, "
@@ -674,6 +669,13 @@ struct FeaturesVk : FeatureSetBase
         "preferLinearFilterForYUV",
         FeatureCategory::VulkanFeatures,
         "Prefer to use VK_FILTER_LINEAR for VkSamplerYcbcrConversion",
+        &members,
+    };
+
+    FeatureInfo supportsYuvTarget = {
+        "supportsYuvTarget",
+        FeatureCategory::VulkanFeatures,
+        "VkDevice supports VK_ANDROID_render_to_external_format and VK_EXT_ycbcr_attachment",
         &members,
     };
 };

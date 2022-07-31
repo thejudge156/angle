@@ -1312,7 +1312,6 @@ using RefCountedDescriptorPoolHelper = RefCounted<DescriptorPoolHelper>;
 
 // SharedDescriptorSetCacheKey.
 // Because DescriptorSet must associate with a pool, we need to define a structure that wraps both.
-class DynamicDescriptorPool;
 struct DescriptorSetDescAndPool
 {
     DescriptorSetDesc mDesc;
@@ -1622,7 +1621,7 @@ class SharedCacheKeyManager
     // Iterate over the descriptor array and release the descriptor and cache.
     void releaseKeys(ContextVk *contextVk);
     // Iterate over the descriptor array and destroy the descriptor and cache.
-    void destroyKeys();
+    void destroyKeys(RendererVk *renderer);
     void clear();
 
     // The following APIs are expected to be used for assertion only

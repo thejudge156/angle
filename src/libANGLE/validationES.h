@@ -36,7 +36,6 @@ struct LinkedUniform;
 class Program;
 class Shader;
 
-bool CompressedTextureFormatAcceptedByTexImage(GLenum internalFormat);
 void SetRobustLengthParam(const GLsizei *length, GLsizei value);
 bool ValidTextureTarget(const Context *context, TextureType type);
 bool ValidTexture2DTarget(const Context *context, TextureType type);
@@ -954,6 +953,7 @@ const char *ValidateProgramPipelineDrawStates(const State &state,
                                               ProgramPipeline *programPipeline);
 const char *ValidateProgramPipelineAttachedPrograms(ProgramPipeline *programPipeline);
 const char *ValidateDrawStates(const Context *context);
+const char *ValidateProgramPipeline(const Context *context);
 
 void RecordDrawAttribsError(const Context *context, angle::EntryPoint entryPoint);
 

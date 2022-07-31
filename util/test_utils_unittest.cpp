@@ -8,6 +8,7 @@
 #include "gtest/gtest.h"
 
 #include "common/system_utils.h"
+#include "tests/test_utils/runner/TestSuite.h"
 #include "util/Timer.h"
 #include "util/test_utils.h"
 #include "util/test_utils_unittest_helper.h"
@@ -70,7 +71,7 @@ TEST(TestUtils, Sleep)
 #    define MAYBE_RunApp DISABLED_RunApp
 #    define MAYBE_RunAppAsync DISABLED_RunAppAsync
 #    define MAYBE_RunAppAsyncRedirectStderrToStdout DISABLED_RunAppAsyncRedirectStderrToStdout
-// TODO: fuchsia support. http://anglebug.com/3161
+// TODO: fuchsia support. http://anglebug.com/7312
 #elif defined(ANGLE_PLATFORM_FUCHSIA)
 #    define MAYBE_RunApp DISABLED_RunApp
 #    define MAYBE_RunAppAsync DISABLED_RunAppAsync
@@ -81,13 +82,22 @@ TEST(TestUtils, Sleep)
 #    define MAYBE_RunAppAsyncRedirectStderrToStdout RunAppAsyncRedirectStderrToStdout
 #endif  // defined(ANGLE_PLATFORM_ANDROID)
 
-// Test running an external application and receiving its output
-TEST(TestUtils, MAYBE_RunApp)
+std::string GetTestAppExecutablePath()
 {
-    std::string executablePath = GetExecutableDirectory();
+    std::string testExecutableName = angle::TestSuite::GetInstance()->getTestExecutableName();
+    std::string executablePath     = angle::StripFilenameFromPath(testExecutableName);
+
     EXPECT_NE(executablePath, "");
     executablePath += "/";
     executablePath += kRunAppHelperExecutable;
+
+    return executablePath;
+}
+
+// Test running an external application and receiving its output
+TEST(TestUtils, MAYBE_RunApp)
+{
+    std::string executablePath = GetTestAppExecutablePath();
 
     std::vector<const char *> args = {executablePath.c_str(), kRunAppTestArg1, kRunAppTestArg2};
 
@@ -126,10 +136,7 @@ TEST(TestUtils, MAYBE_RunApp)
 // Test running an external application and receiving its output asynchronously.
 TEST(TestUtils, MAYBE_RunAppAsync)
 {
-    std::string executablePath = GetExecutableDirectory();
-    EXPECT_NE(executablePath, "");
-    executablePath += "/";
-    executablePath += kRunAppHelperExecutable;
+    std::string executablePath = GetTestAppExecutablePath();
 
     std::vector<const char *> args = {executablePath.c_str(), kRunAppTestArg1, kRunAppTestArg2};
 
@@ -158,10 +165,7 @@ TEST(TestUtils, MAYBE_RunAppAsync)
 // Test running an external application and receiving its stdout and stderr output interleaved.
 TEST(TestUtils, MAYBE_RunAppAsyncRedirectStderrToStdout)
 {
-    std::string executablePath = GetExecutableDirectory();
-    EXPECT_NE(executablePath, "");
-    executablePath += "/";
-    executablePath += kRunAppHelperExecutable;
+    std::string executablePath = GetTestAppExecutablePath();
 
     std::vector<const char *> args = {executablePath.c_str(), kRunAppTestArg1, kRunAppTestArg2};
 

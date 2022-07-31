@@ -8,6 +8,7 @@
 
 #include "common/angleutils.h"
 #include "compiler/translator/SymbolTable.h"
+#include "compiler/translator/tree_ops/MonomorphizeUnsupportedFunctions.h"
 #include "compiler/translator/tree_util/IntermNode_util.h"
 #include "compiler/translator/tree_util/IntermTraverse.h"
 #include "compiler/translator/tree_util/RunAtTheBeginningOfShader.h"
@@ -54,8 +55,10 @@ constexpr static TBasicType Image2DTypeOfPLSType(TBasicType plsType)
 class RewriteToImagesTraverser : public TIntermTraverser
 {
   public:
-    RewriteToImagesTraverser(TSymbolTable &symbolTable, int shaderVersion)
-        : TIntermTraverser(true, false, false, &symbolTable), mShaderVersion(shaderVersion)
+    RewriteToImagesTraverser(TCompiler *compiler, TSymbolTable &symbolTable, int shaderVersion)
+        : TIntermTraverser(true, false, false, &symbolTable),
+          mCompiler(compiler),
+          mShaderVersion(shaderVersion)
     {}
 
     bool visitDeclaration(Visit, TIntermDeclaration *decl) override
@@ -88,16 +91,40 @@ class RewriteToImagesTraverser : public TIntermTraverser
         }
 
         PLSImages &pls = insertNullPLSImages(plsSymbol);
+        TLayoutImageInternalFormat format =
+            plsSymbol->getType().getLayoutQualifier().imageInternalFormat;
+        if (mCompiler->getOutputType() == ShShaderOutput::SH_ESSL_OUTPUT &&
+            format != TLayoutImageInternalFormat::EiifR32F &&
+            format != TLayoutImageInternalFormat::EiifR32I &&
+            format != TLayoutImageInternalFormat::EiifR32UI)
+        {
+            // ES 3.1 requires image formats other than r32f/r32i/r32ui to be either readonly or
+            // writeonly. To work around this, we create two aliases of the same image: one readonly
+            // and one writeonly.
+            //
+            // TODO(anglebug.com/7279): Maybe we could manually pack 4-byte formats into GL_R32UI
+            // instead of aliasing them. We could also walk the tree first and see which image is
+            // used how. If the image is never loaded, no need to generate the readonly binding for
+            // example.
+            //
+            // First insert a readonly image2D directly before the PLS declaration.
+            pls.image2DForLoading = createPLSImage(plsSymbol, ImageAccess::ReadOnly);
+            insertStatementInParentBlock(
+                new TIntermDeclaration({new TIntermSymbol(pls.image2DForLoading)}));
 
-        // Insert a readonly image2D directly before the PLS declaration.
-        pls.image2DForLoading = createPLSImage(plsSymbol, ImageAccess::Readonly);
-        insertStatementInParentBlock(
-            new TIntermDeclaration({new TIntermSymbol(pls.image2DForLoading)}));
-
-        // Replace the PLS declaration with a writeonly image2D.
-        pls.image2DForStoring = createPLSImage(plsSymbol, ImageAccess::Writeonly);
-        queueReplacement(new TIntermDeclaration({new TIntermSymbol(pls.image2DForStoring)}),
-                         OriginalNode::IS_DROPPED);
+            // Replace the PLS declaration with a writeonly image2D.
+            pls.image2DForStoring = createPLSImage(plsSymbol, ImageAccess::WriteOnly);
+            queueReplacement(new TIntermDeclaration({new TIntermSymbol(pls.image2DForStoring)}),
+                             OriginalNode::IS_DROPPED);
+        }
+        else
+        {
+            // Replace the PLS declaration with a single readwrite image2D.
+            TVariable *readWriteImage = createPLSImage(plsSymbol, ImageAccess::ReadWrite);
+            queueReplacement(new TIntermDeclaration({new TIntermSymbol(readWriteImage)}),
+                             OriginalNode::IS_DROPPED);
+            pls.image2DForLoading = pls.image2DForStoring = readWriteImage;
+        }
 
         return false;
     }
@@ -131,12 +158,17 @@ class RewriteToImagesTraverser : public TIntermTraverser
         // Rewrite pixelLocalStoreANGLE -> imageStore.
         if (aggregate->getOp() == EOpPixelLocalStoreANGLE)
         {
-            // Since ES 3.1 makes us have readonly and writeonly aliases of the same image, we have
-            // to surround every pixelLocalStoreANGLE with memoryBarrier calls.
+            // Surround the store with memoryBarrierImage calls in order to ensure dependent stores
+            // and loads in a single shader invocation are coherent. From the ES 3.1 spec:
+            //
+            //   Using variables declared as "coherent" guarantees only that the results of stores
+            //   will be immediately visible to shader invocations using similarly-declared
+            //   variables; calling MemoryBarrier is required to ensure that the stores are visible
+            //   to other operations.
             //
             // Also hoist the 'value' expression into a temp. In the event of
             // "pixelLocalStoreANGLE(..., pixelLocalLoadANGLE(...))", this ensures the load occurs
-            // _before_ the memoryBarrier.
+            // _before_ the memoryBarrierImage.
             //
             // NOTE: It is generally unsafe to hoist function arguments due to short circuiting,
             // e.g., "if (false && function(...))", but pixelLocalStoreANGLE returns type void, so
@@ -145,11 +177,11 @@ class RewriteToImagesTraverser : public TIntermTraverser
                                             plsSymbol->getPrecision(), EvqTemporary, 4);
             TVariable *valueVar = CreateTempVariable(mSymbolTable, valueType);
             TIntermDeclaration *valueDecl =
-                CreateTempInitDeclarationNode(valueVar, args[1]->deepCopy()->getAsTyped());
+                CreateTempInitDeclarationNode(valueVar, args[1]->getAsTyped());
             valueDecl->traverse(this);  // Rewrite any potential pixelLocalLoadANGLEs in valueDecl.
 
-            insertStatementsInParentBlock({valueDecl, createMemoryBarrierNode()},  // Before.
-                                          {createMemoryBarrierNode()});            // After.
+            insertStatementsInParentBlock({valueDecl, createMemoryBarrierImageNode()},  // Before.
+                                          {createMemoryBarrierImageNode()});            // After.
 
             // Rewrite the pixelLocalStoreANGLE with imageStore.
             TIntermSequence imageStoreArgs = {new TIntermSymbol(pls.image2DForStoring),
@@ -205,8 +237,9 @@ class RewriteToImagesTraverser : public TIntermTraverser
 
     enum class ImageAccess
     {
-        Readonly,
-        Writeonly
+        ReadOnly,
+        WriteOnly,
+        ReadWrite
     };
 
     // Creates a 'gimage2D' that implements a pixel local storage handle.
@@ -217,10 +250,10 @@ class RewriteToImagesTraverser : public TIntermTraverser
 
         TMemoryQualifier memoryQualifier;
         memoryQualifier.coherent          = true;
-        memoryQualifier.restrictQualifier = false;
-        memoryQualifier.volatileQualifier = true;
-        memoryQualifier.readonly          = access == ImageAccess::Readonly;
-        memoryQualifier.writeonly         = access == ImageAccess::Writeonly;
+        memoryQualifier.restrictQualifier = access == ImageAccess::ReadWrite;
+        memoryQualifier.volatileQualifier = access != ImageAccess::ReadWrite;
+        memoryQualifier.readonly          = access == ImageAccess::ReadOnly;
+        memoryQualifier.writeonly         = access == ImageAccess::WriteOnly;
 
         TType *imageType = new TType(plsSymbol->getType());
         imageType->setBasicType(Image2DTypeOfPLSType(plsSymbol->getBasicType()));
@@ -228,18 +261,26 @@ class RewriteToImagesTraverser : public TIntermTraverser
 
         std::string name = "_pls";
         name.append(plsSymbol->getName().data());
-        name.append(access == ImageAccess::Readonly ? "_R" : "_W");
+        if (access == ImageAccess::ReadOnly)
+        {
+            name.append("_R");
+        }
+        else if (access == ImageAccess::WriteOnly)
+        {
+            name.append("_W");
+        }
         return new TVariable(mSymbolTable, ImmutableString(name), imageType, SymbolType::BuiltIn);
     }
 
     // Creates a function call to memoryBarrier().
-    TIntermNode *createMemoryBarrierNode()
+    TIntermNode *createMemoryBarrierImageNode()
     {
         TIntermSequence emptyArgs;
-        return CreateBuiltInFunctionCallNode("memoryBarrier", &emptyArgs, *mSymbolTable,
+        return CreateBuiltInFunctionCallNode("memoryBarrierImage", &emptyArgs, *mSymbolTable,
                                              mShaderVersion);
     }
 
+    const TCompiler *const mCompiler;
     const int mShaderVersion;
 
     // Stores the shader invocation's pixel coordinate as "ivec2(floor(gl_FragCoord.xy))".
@@ -254,9 +295,20 @@ class RewriteToImagesTraverser : public TIntermTraverser
 bool RewritePixelLocalStorageToImages(TCompiler *compiler,
                                       TIntermBlock *root,
                                       TSymbolTable &symbolTable,
+                                      ShCompileOptions compileOptions,
                                       int shaderVersion)
 {
-    RewriteToImagesTraverser traverser(symbolTable, shaderVersion);
+    // If any functions take PLS arguments, monomorphize the functions by removing said parameters
+    // and making the PLS calls from main() instead, using the global uniform from the call site
+    // instead of the function argument. This is necessary because function arguments don't carry
+    // the necessary "binding" or "format" layout qualifiers.
+    if (!MonomorphizeUnsupportedFunctions(
+            compiler, root, &symbolTable, compileOptions,
+            UnsupportedFunctionArgsBitSet{UnsupportedFunctionArgs::PixelLocalStorage}))
+    {
+        return false;
+    }
+    RewriteToImagesTraverser traverser(compiler, symbolTable, shaderVersion);
     root->traverse(&traverser);
     if (!traverser.updateTree(compiler, root))
     {

@@ -10,7 +10,9 @@
 #
 # Valid values for "handling/result" are
 #
-#   NOT_RUN : the is expceted to be skipped by the end2end_tests program
+#   SKIP_FOR_CAPTURE : SKIP from capture_replay tests
+#
+#   NOT_RUN (DEPRECATED https://anglebug.com/7516): already skipped by end2end test suite
 #
 #   FAIL : the test is expected to fail
 #
@@ -55,9 +57,6 @@
 # Fails because of unsupported combined depth/stencil GetImage.
 4688 ASAN : DepthStencilTest.DepthOnlyEmulatedWithPacked/* = FAIL
 
-# Skipped in end2end tests
-6336 : GetImageTest.InconsistentTexture2D/* = NOT_RUN
-
 # ES3
 6180 : BlitFramebufferTest.BlitDepthStencilPixelByPixel/* = NOT_RUN
 6180 : GLSLTest_ES3.UnsuccessfulRelinkWithBindAttribLocation/* = NOT_RUN
@@ -101,8 +100,8 @@
 6631 WIN : MultithreadingTestES3.MultithreadFenceTexImage/* = CRASH
 6631 : MultithreadingTest.MultiContextDrawWithSwapBuffers/* = CRASH
 
-# Marking this as NOT_RUN because we don't want it to run as it uses multiple contexts
-6752 : OcclusionQueriesNoSurfaceTestES3.SwitchingContextsWithQuery/* = NOT_RUN
+# Uses multiple contexts, don't want to run
+6752 : OcclusionQueriesNoSurfaceTestES3.SwitchingContextsWithQuery/* = SKIP_FOR_CAPTURE
 
 # ES3_1
 6180 : ProgramPipelineTest31.VerifyPpoLinkErrorSignalledCorrectly/* = FAIL
@@ -117,20 +116,12 @@
 6180 : GeometryShaderTest.LayeredFramebufferPreRenderClear2DArrayColor/* = NOT_RUN
 6180 : GeometryShaderTest.LayeredFramebufferPreRenderClear3DColor/* = NOT_RUN
 
-6663 : Texture2DTest.UploadThenFSThenNewRPThenFSThenVS/* = NOT_RUN
-6663 : Texture2DTest.UploadThenFSThenNewRPThenVS/* = NOT_RUN
-6663 : Texture2DTest.UploadThenFSThenNewRPThenVSThenFS/* = NOT_RUN
-6663 : Texture2DTest.UploadThenFSThenVS/* = NOT_RUN
-6663 : Texture2DTest.UploadThenFSThenVSThenNewRPThenFS/*  = NOT_RUN
-
 6741 : VulkanImageTest.* = SKIP_FOR_CAPTURE
 
 6941 : Texture2DTestES3RobustInit.TextureCOMPRESSEDRGB8A1ETC2/* = NOT_RUN
 6941 : Texture2DTestES3RobustInit.TextureCOMPRESSEDSRGB8A1ETC2/* = NOT_RUN
 
 6926 : Texture2DTestES3.TextureRGBUpdateWithPBO/ES3_Vulkan* = NOT_RUN
-
-6875 : TransformFeedbackTest.SpanMultipleRenderPasses/* = NOT_RUN
 
 7112 : TransformFeedbackTest.BaseInstance/* = NOT_RUN
 
