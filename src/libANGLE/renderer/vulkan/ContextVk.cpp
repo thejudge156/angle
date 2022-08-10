@@ -90,17 +90,10 @@ struct GraphicsDriverUniforms
 static_assert(sizeof(GraphicsDriverUniforms) % (sizeof(uint32_t) * 4) == 0,
               "GraphicsDriverUniforms should be 16bytes aligned");
 
-// Only used under the following conditions:
-//
-// - Bresenham line rasterization is not supported, or
-// - Transform feedback is emulated
-//
+// Only used when transform feedback is emulated.
 struct GraphicsDriverUniformsExtended
 {
     GraphicsDriverUniforms common;
-
-    // Only used with bresenham line rasterization emulation
-    std::array<float, 4> viewport;
 
     // Only used with transform feedback emulation
     std::array<int32_t, 4> xfbBufferOffsets;
@@ -164,9 +157,8 @@ constexpr gl::ShaderMap<vk::ImageLayout> kShaderWriteImageLayouts = {
     {gl::ShaderType::Fragment, vk::ImageLayout::FragmentShaderWrite},
     {gl::ShaderType::Compute, vk::ImageLayout::ComputeShaderWrite}};
 
-constexpr VkBufferUsageFlags kVertexBufferUsage   = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-constexpr size_t kDynamicVertexDataSize           = 16 * 1024;
-constexpr size_t kDriverUniformsAllocatorPageSize = 4 * 1024;
+constexpr VkBufferUsageFlags kVertexBufferUsage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+constexpr size_t kDynamicVertexDataSize         = 16 * 1024;
 
 bool CanMultiDrawIndirectUseCmd(ContextVk *contextVk,
                                 VertexArrayVk *vertexArray,
@@ -645,6 +637,11 @@ bool BlendModeSupportsDither(const gl::State &state, size_t colorIndex)
            state.getBlendStateExt().getDstColorIndexed(colorIndex) == GL_ONE_MINUS_SRC_ALPHA;
 }
 
+bool shouldUseGraphicsDriverUniformsExtended(const ContextVk *contextVk)
+{
+    return contextVk->getFeatures().emulateTransformFeedback.enabled;
+}
+
 }  // anonymous namespace
 
 void ContextVk::flushDescriptorSetUpdates()
@@ -670,27 +667,6 @@ ANGLE_INLINE void ContextVk::onRenderPassFinished(RenderPassClosureReason reason
 
     mRenderPassCommandBuffer = nullptr;
     mGraphicsDirtyBits.set(DIRTY_BIT_RENDER_PASS);
-}
-
-ContextVk::DriverUniformsDescriptorSet::DriverUniformsDescriptorSet()
-    : descriptorSet(VK_NULL_HANDLE), currentBuffer(nullptr)
-{}
-
-ContextVk::DriverUniformsDescriptorSet::~DriverUniformsDescriptorSet() = default;
-
-void ContextVk::DriverUniformsDescriptorSet::init(RendererVk *rendererVk)
-{
-    size_t minAlignment = static_cast<size_t>(
-        rendererVk->getPhysicalDeviceProperties().limits.minUniformBufferOffsetAlignment);
-    dynamicBuffer.init(rendererVk, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, minAlignment,
-                       kDriverUniformsAllocatorPageSize, true);
-}
-
-void ContextVk::DriverUniformsDescriptorSet::destroy(RendererVk *renderer)
-{
-    descriptorSetLayout.reset();
-    descriptorPoolBinding.reset();
-    dynamicBuffer.destroy(renderer);
 }
 
 // ContextVk implementation.
@@ -756,16 +732,10 @@ ContextVk::ContextVk(const gl::State &state, gl::ErrorSet *errorSet, RendererVk 
     // begun.  However, using ANGLE's SecondaryCommandBuffer, the Vulkan command buffer (which is
     // the primary command buffer) is not ended, so technically we don't need to rebind these.
     mNewGraphicsCommandBufferDirtyBits = DirtyBits{
-        DIRTY_BIT_RENDER_PASS,
-        DIRTY_BIT_COLOR_ACCESS,
-        DIRTY_BIT_DEPTH_STENCIL_ACCESS,
-        DIRTY_BIT_PIPELINE_BINDING,
-        DIRTY_BIT_TEXTURES,
-        DIRTY_BIT_VERTEX_BUFFERS,
-        DIRTY_BIT_INDEX_BUFFER,
-        DIRTY_BIT_SHADER_RESOURCES,
-        DIRTY_BIT_DESCRIPTOR_SETS,
-        DIRTY_BIT_DRIVER_UNIFORMS_BINDING,
+        DIRTY_BIT_RENDER_PASS,      DIRTY_BIT_COLOR_ACCESS,     DIRTY_BIT_DEPTH_STENCIL_ACCESS,
+        DIRTY_BIT_PIPELINE_BINDING, DIRTY_BIT_TEXTURES,         DIRTY_BIT_VERTEX_BUFFERS,
+        DIRTY_BIT_INDEX_BUFFER,     DIRTY_BIT_SHADER_RESOURCES, DIRTY_BIT_DESCRIPTOR_SETS,
+        DIRTY_BIT_DRIVER_UNIFORMS,
     };
     if (getFeatures().supportsTransformFeedbackExtension.enabled ||
         getFeatures().emulateTransformFeedback.enabled)
@@ -775,7 +745,7 @@ ContextVk::ContextVk(const gl::State &state, gl::ErrorSet *errorSet, RendererVk 
 
     mNewComputeCommandBufferDirtyBits =
         DirtyBits{DIRTY_BIT_PIPELINE_BINDING, DIRTY_BIT_TEXTURES, DIRTY_BIT_SHADER_RESOURCES,
-                  DIRTY_BIT_DESCRIPTOR_SETS, DIRTY_BIT_DRIVER_UNIFORMS_BINDING};
+                  DIRTY_BIT_DESCRIPTOR_SETS, DIRTY_BIT_DRIVER_UNIFORMS};
 
     mDynamicStateDirtyBits = DirtyBits{
         DIRTY_BIT_DYNAMIC_VIEWPORT,           DIRTY_BIT_DYNAMIC_SCISSOR,
@@ -833,8 +803,6 @@ ContextVk::ContextVk(const gl::State &state, gl::ErrorSet *errorSet, RendererVk 
     mGraphicsDirtyBitHandlers[DIRTY_BIT_UNIFORMS]     = &ContextVk::handleDirtyGraphicsUniforms;
     mGraphicsDirtyBitHandlers[DIRTY_BIT_DRIVER_UNIFORMS] =
         &ContextVk::handleDirtyGraphicsDriverUniforms;
-    mGraphicsDirtyBitHandlers[DIRTY_BIT_DRIVER_UNIFORMS_BINDING] =
-        &ContextVk::handleDirtyGraphicsDriverUniformsBinding;
     mGraphicsDirtyBitHandlers[DIRTY_BIT_SHADER_RESOURCES] =
         &ContextVk::handleDirtyGraphicsShaderResources;
     mGraphicsDirtyBitHandlers[DIRTY_BIT_FRAMEBUFFER_FETCH_BARRIER] =
@@ -906,8 +874,6 @@ ContextVk::ContextVk(const gl::State &state, gl::ErrorSet *errorSet, RendererVk 
     mComputeDirtyBitHandlers[DIRTY_BIT_UNIFORMS] = &ContextVk::handleDirtyComputeUniforms;
     mComputeDirtyBitHandlers[DIRTY_BIT_DRIVER_UNIFORMS] =
         &ContextVk::handleDirtyComputeDriverUniforms;
-    mComputeDirtyBitHandlers[DIRTY_BIT_DRIVER_UNIFORMS_BINDING] =
-        &ContextVk::handleDirtyComputeDriverUniformsBinding;
     mComputeDirtyBitHandlers[DIRTY_BIT_SHADER_RESOURCES] =
         &ContextVk::handleDirtyComputeShaderResources;
     mComputeDirtyBitHandlers[DIRTY_BIT_DESCRIPTOR_SETS] =
@@ -1019,16 +985,6 @@ void ContextVk::onDestroy(const gl::Context *context)
 
     VkDevice device = getDevice();
 
-    for (DriverUniformsDescriptorSet &driverUniforms : mDriverUniforms)
-    {
-        driverUniforms.destroy(mRenderer);
-    }
-
-    for (vk::DynamicDescriptorPool &dynamicDescriptorPool : mDriverUniformsDescriptorPools)
-    {
-        dynamicDescriptorPool.destroy(mRenderer);
-    }
-
     mDefaultUniformStorage.release(mRenderer);
     mEmptyBuffer.release(mRenderer);
 
@@ -1121,39 +1077,6 @@ angle::Result ContextVk::initialize()
 
     // Init GLES to Vulkan index type map.
     initIndexTypeMap();
-
-    // Init driver uniforms and get the descriptor set layouts.
-    for (PipelineType pipeline : angle::AllEnums<PipelineType>())
-    {
-        mDriverUniforms[pipeline].init(mRenderer);
-
-        vk::DescriptorSetLayoutDesc desc = getDriverUniformsDescriptorSetDesc();
-        ANGLE_TRY(getDescriptorSetLayoutCache().getDescriptorSetLayout(
-            this, desc, &mDriverUniforms[pipeline].descriptorSetLayout));
-
-        vk::DescriptorSetLayoutBindingVector bindingVector;
-        std::vector<VkSampler> immutableSamplers;
-        desc.unpackBindings(&bindingVector, &immutableSamplers);
-        std::vector<VkDescriptorPoolSize> descriptorPoolSizes;
-
-        for (const VkDescriptorSetLayoutBinding &binding : bindingVector)
-        {
-            if (binding.descriptorCount > 0)
-            {
-                VkDescriptorPoolSize poolSize = {};
-
-                poolSize.type            = binding.descriptorType;
-                poolSize.descriptorCount = binding.descriptorCount;
-                descriptorPoolSizes.emplace_back(poolSize);
-            }
-        }
-        if (!descriptorPoolSizes.empty())
-        {
-            ANGLE_TRY(mDriverUniformsDescriptorPools[pipeline].init(
-                this, descriptorPoolSizes.data(), descriptorPoolSizes.size(),
-                mDriverUniforms[pipeline].descriptorSetLayout.get()));
-        }
-    }
 
     mGraphicsPipelineDesc.reset(new vk::GraphicsPipelineDesc());
     mGraphicsPipelineDesc->initDefaults(this);
@@ -2886,11 +2809,6 @@ void ContextVk::syncObjectPerfCounters(const angle::VulkanPerfCounters &commandQ
     mShareGroupVk->getMetaDescriptorPool(DescriptorSetIndex::ShaderResource)
         .accumulateDescriptorCacheStats(VulkanCacheType::ShaderResourcesDescriptors, this);
 
-    for (vk::DynamicDescriptorPool &pool : mDriverUniformsDescriptorPools)
-    {
-        pool.accumulateDescriptorCacheStats(VulkanCacheType::DriverUniformsDescriptors, this);
-    }
-
     const CacheStats &uniCacheStats = mVulkanCacheStats[VulkanCacheType::UniformsAndXfbDescriptors];
     mPerfCounters.uniformsAndXfbDescriptorSetCacheHits      = uniCacheStats.getHitCount();
     mPerfCounters.uniformsAndXfbDescriptorSetCacheMisses    = uniCacheStats.getMissCount();
@@ -2918,11 +2836,6 @@ void ContextVk::syncObjectPerfCounters(const angle::VulkanPerfCounters &commandQ
         vk::MetaDescriptorPool &descriptorPool =
             mShareGroupVk->getMetaDescriptorPool(descriptorSetIndex);
         mPerfCounters.descriptorSetCacheKeySizeBytes += descriptorPool.getTotalCacheKeySizeBytes();
-    }
-
-    for (vk::DynamicDescriptorPool &pool : mDriverUniformsDescriptorPools)
-    {
-        mPerfCounters.descriptorSetCacheKeySizeBytes += pool.getTotalCacheKeySizeBytes();
     }
 
     // Update perf counters from the renderer as well
@@ -3072,14 +2985,16 @@ void ContextVk::addOverlayUsedBuffersCount(vk::CommandBufferHelperCommon *comman
     }
 }
 
-angle::Result ContextVk::submitFrame(const vk::Semaphore *signalSemaphore, Serial *submitSerialOut)
+angle::Result ContextVk::submitFrame(const vk::Semaphore *signalSemaphore,
+                                     Submit submission,
+                                     Serial *submitSerialOut)
 {
     getShareGroup()->acquireResourceUseList(
         std::move(mOutsideRenderPassCommands->releaseResourceUseList()));
     getShareGroup()->acquireResourceUseList(
         std::move(mRenderPassCommands->releaseResourceUseList()));
 
-    ANGLE_TRY(submitCommands(signalSemaphore, submitSerialOut));
+    ANGLE_TRY(submitCommands(signalSemaphore, submission, submitSerialOut));
 
     mHasAnyCommandsPendingSubmission = false;
 
@@ -3093,10 +3008,11 @@ angle::Result ContextVk::submitFrameOutsideCommandBufferOnly(Serial *submitSeria
     getShareGroup()->acquireResourceUseList(
         std::move(mOutsideRenderPassCommands->releaseResourceUseList()));
 
-    return submitCommands(nullptr, submitSerialOut);
+    return submitCommands(nullptr, Submit::OutsideRenderPassCommandsOnly, submitSerialOut);
 }
 
 angle::Result ContextVk::submitCommands(const vk::Semaphore *signalSemaphore,
+                                        Submit submission,
                                         Serial *submitSerialOut)
 {
     if (mCurrentWindowSurface)
@@ -3115,10 +3031,18 @@ angle::Result ContextVk::submitCommands(const vk::Semaphore *signalSemaphore,
         dumpCommandStreamDiagnostics();
     }
 
+    // Clean up garbage only when submitting all commands.  Otherwise there may be garbage
+    // associated with commands that are not yet flushed.
+    vk::GarbageList garbage;
+    if (submission == Submit::AllCommands)
+    {
+        garbage = std::move(mCurrentGarbage);
+    }
+
     ANGLE_TRY(mRenderer->submitFrame(this, hasProtectedContent(), mContextPriority,
                                      std::move(mWaitSemaphores),
                                      std::move(mWaitSemaphoreStageMasks), signalSemaphore,
-                                     std::move(mCurrentGarbage), &mCommandPools, submitSerialOut));
+                                     std::move(garbage), &mCommandPools, submitSerialOut));
 
     getShareGroup()->releaseResourceUseLists(*submitSerialOut);
     // Now that we have processed resourceUseList, some of pending garbage may no longer pending
@@ -4409,10 +4333,6 @@ void ContextVk::updateViewport(FramebufferVk *framebufferVk,
     // Ensure viewport is within Vulkan requirements
     vk::ClampViewport(&mViewport);
 
-    if (getFeatures().basicGLLineRasterization.enabled)
-    {
-        invalidateGraphicsDriverUniforms();
-    }
     mGraphicsDirtyBits.set(DIRTY_BIT_DYNAMIC_VIEWPORT);
 }
 
@@ -5578,13 +5498,13 @@ angle::Result ContextVk::updateShaderResourcesDescriptorDesc(PipelineType pipeli
 
 void ContextVk::invalidateGraphicsDriverUniforms()
 {
-    mGraphicsDirtyBits |= kDriverUniformsAndBindingDirtyBits;
+    mGraphicsDirtyBits.set(DIRTY_BIT_DRIVER_UNIFORMS);
 }
 
 void ContextVk::invalidateDriverUniforms()
 {
-    mGraphicsDirtyBits |= kDriverUniformsAndBindingDirtyBits;
-    mComputeDirtyBits |= kDriverUniformsAndBindingDirtyBits;
+    mGraphicsDirtyBits.set(DIRTY_BIT_DRIVER_UNIFORMS);
+    mComputeDirtyBits.set(DIRTY_BIT_DRIVER_UNIFORMS);
 }
 
 angle::Result ContextVk::onFramebufferChange(FramebufferVk *framebufferVk, gl::Command command)
@@ -5784,9 +5704,12 @@ void ContextVk::invalidateGraphicsDescriptorSet(DescriptorSetIndex usedDescripto
 {
     // UtilsVk currently only uses set 0
     ASSERT(usedDescriptorSet == DescriptorSetIndex::Internal);
-    if (mDriverUniforms[PipelineType::Graphics].descriptorSet != VK_NULL_HANDLE)
+    const gl::ProgramExecutable *executable = mState.getProgramExecutable();
+
+    if (executable && executable->hasUniformBuffers())
     {
-        mGraphicsDirtyBits.set(DIRTY_BIT_DRIVER_UNIFORMS_BINDING);
+        mGraphicsDirtyBits.set(DIRTY_BIT_DESCRIPTOR_SETS);
+        return;
     }
 }
 
@@ -5794,9 +5717,12 @@ void ContextVk::invalidateComputeDescriptorSet(DescriptorSetIndex usedDescriptor
 {
     // UtilsVk currently only uses set 0
     ASSERT(usedDescriptorSet == DescriptorSetIndex::Internal);
-    if (mDriverUniforms[PipelineType::Compute].descriptorSet != VK_NULL_HANDLE)
+    const gl::ProgramExecutable *executable = mState.getProgramExecutable();
+
+    if (executable && executable->hasUniformBuffers())
     {
-        mComputeDirtyBits.set(DIRTY_BIT_DRIVER_UNIFORMS_BINDING);
+        mComputeDirtyBits.set(DIRTY_BIT_DESCRIPTOR_SETS);
+        return;
     }
 }
 
@@ -6104,26 +6030,6 @@ void ContextVk::pauseTransformFeedbackIfActiveUnpaused()
 angle::Result ContextVk::handleDirtyGraphicsDriverUniforms(DirtyBits::Iterator *dirtyBitsIterator,
                                                            DirtyBits dirtyBitMask)
 {
-    // Allocate a new region in the dynamic buffer.
-    const bool useGraphicsDriverUniformsExtended = getFeatures().basicGLLineRasterization.enabled ||
-                                                   getFeatures().emulateTransformFeedback.enabled;
-    uint8_t *ptr;
-    bool newBuffer;
-    GraphicsDriverUniforms *driverUniforms;
-    size_t driverUniformSize;
-
-    if (useGraphicsDriverUniformsExtended)
-    {
-        driverUniformSize = sizeof(GraphicsDriverUniformsExtended);
-    }
-    else
-    {
-        driverUniformSize = sizeof(GraphicsDriverUniforms);
-    }
-
-    ANGLE_TRY(allocateDriverUniforms(driverUniformSize, &mDriverUniforms[PipelineType::Graphics],
-                                     &ptr, &newBuffer));
-
     FramebufferVk *drawFramebufferVk = getDrawFramebuffer();
 
     static_assert(gl::IMPLEMENTATION_MAX_2D_TEXTURE_SIZE <= 0xFFFF,
@@ -6166,40 +6072,24 @@ angle::Result ContextVk::handleDirtyGraphicsDriverUniforms(DirtyBits::Iterator *
     const bool invertViewport =
         isViewportFlipEnabledForDrawFBO() && getFeatures().supportsNegativeViewport.enabled;
 
-    if (useGraphicsDriverUniformsExtended)
+    // Create the extended driver uniform, and populate the extended data fields if necessary.
+    GraphicsDriverUniformsExtended driverUniformsExt = {};
+    if (shouldUseGraphicsDriverUniformsExtended(this))
     {
-        GraphicsDriverUniformsExtended *driverUniformsExt =
-            reinterpret_cast<GraphicsDriverUniformsExtended *>(ptr);
-        memset(driverUniformsExt, 0, sizeof(*driverUniformsExt));
-
-        gl::Rectangle glViewport = mState.getViewport();
-        if (isRotatedAspectRatioForDrawFBO())
-        {
-            // The surface is rotated 90/270 degrees.  This changes the aspect ratio of the surface.
-            std::swap(glViewport.x, glViewport.y);
-            std::swap(glViewport.width, glViewport.height);
-        }
-        driverUniformsExt->viewport = {
-            static_cast<float>(glViewport.x), static_cast<float>(glViewport.y),
-            static_cast<float>(glViewport.width), static_cast<float>(glViewport.height)};
-
         if (mState.isTransformFeedbackActiveUnpaused())
         {
             TransformFeedbackVk *transformFeedbackVk =
                 vk::GetImpl(mState.getCurrentTransformFeedback());
             transformFeedbackVk->getBufferOffsets(this, mXfbBaseVertex,
-                                                  driverUniformsExt->xfbBufferOffsets.data(),
-                                                  driverUniformsExt->xfbBufferOffsets.size());
+                                                  driverUniformsExt.xfbBufferOffsets.data(),
+                                                  driverUniformsExt.xfbBufferOffsets.size());
         }
-        driverUniformsExt->xfbVerticesPerInstance =
-            static_cast<int32_t>(mXfbVertexCountPerInstance);
+        driverUniformsExt.xfbVerticesPerInstance = static_cast<int32_t>(mXfbVertexCountPerInstance);
+    }
 
-        driverUniforms = &driverUniformsExt->common;
-    }
-    else
-    {
-        driverUniforms = reinterpret_cast<GraphicsDriverUniforms *>(ptr);
-    }
+    // Create the driver uniform object that will be used as push constant argument.
+    GraphicsDriverUniforms *driverUniforms = &driverUniformsExt.common;
+    uint32_t driverUniformSize             = getDriverUniformSize(PipelineType::Graphics);
 
     const float depthRangeNear = mState.getNearPlane();
     const float depthRangeFar  = mState.getFarPlane();
@@ -6255,140 +6145,32 @@ angle::Result ContextVk::handleDirtyGraphicsDriverUniforms(DirtyBits::Iterator *
                                                      driverUniforms->acbBufferOffsets.size());
     }
 
-    return updateDriverUniformsDescriptorSet(mRenderPassCommands, newBuffer, driverUniformSize,
-                                             PipelineType::Graphics);
+    // Update push constant driver uniforms.
+    ProgramExecutableVk *executableVk = getExecutable();
+    mRenderPassCommands->getCommandBuffer().pushConstants(
+        executableVk->getPipelineLayout(), getRenderer()->getSupportedVulkanShaderStageMask(), 0,
+        driverUniformSize, driverUniforms);
+
+    return angle::Result::Continue;
 }
 
 angle::Result ContextVk::handleDirtyComputeDriverUniforms()
 {
-    // Allocate a new region in the dynamic buffer.
-    uint8_t *ptr;
-    bool newBuffer;
-    ANGLE_TRY(allocateDriverUniforms(sizeof(ComputeDriverUniforms),
-                                     &mDriverUniforms[PipelineType::Compute], &ptr, &newBuffer));
-
-    // Copy and flush to the device.
-    ComputeDriverUniforms *driverUniforms = reinterpret_cast<ComputeDriverUniforms *>(ptr);
-    *driverUniforms                       = {};
+    // Create the driver uniform object that will be used as push constant argument.
+    ComputeDriverUniforms driverUniforms = {};
+    uint32_t driverUniformSize           = getDriverUniformSize(PipelineType::Compute);
 
     if (mState.hasValidAtomicCounterBuffer())
     {
-        writeAtomicCounterBufferDriverUniformOffsets(driverUniforms->acbBufferOffsets.data(),
-                                                     driverUniforms->acbBufferOffsets.size());
+        writeAtomicCounterBufferDriverUniformOffsets(driverUniforms.acbBufferOffsets.data(),
+                                                     driverUniforms.acbBufferOffsets.size());
     }
 
-    return updateDriverUniformsDescriptorSet(mOutsideRenderPassCommands, newBuffer,
-                                             sizeof(ComputeDriverUniforms), PipelineType::Compute);
-}
-
-template <typename CommandBufferHelperT>
-void ContextVk::handleDirtyDriverUniformsBindingImpl(CommandBufferHelperT *commandBufferHelper,
-                                                     VkPipelineBindPoint bindPoint,
-                                                     DriverUniformsDescriptorSet *driverUniforms)
-{
-    // The descriptor pool that this descriptor set was allocated from needs to be retained when the
-    // descriptor set is used in a new command. Since the descriptor pools are specific to each
-    // ContextVk, we only need to retain them once to ensure the reference count and Serial are
-    // updated correctly.
-    if (!driverUniforms->descriptorPoolBinding.get().usedInRecordedCommands())
-    {
-        commandBufferHelper->retainResource(&driverUniforms->descriptorPoolBinding.get());
-    }
-
+    // Update push constant driver uniforms.
     ProgramExecutableVk *executableVk = getExecutable();
-    const uint32_t dynamicOffset =
-        static_cast<uint32_t>(driverUniforms->currentBuffer->getOffset());
-    commandBufferHelper->getCommandBuffer().bindDescriptorSets(
-        executableVk->getPipelineLayout(), bindPoint, DescriptorSetIndex::Internal, 1,
-        &driverUniforms->descriptorSet, 1, &dynamicOffset);
-}
-
-angle::Result ContextVk::handleDirtyGraphicsDriverUniformsBinding(
-    DirtyBits::Iterator *dirtyBitsIterator,
-    DirtyBits dirtyBitMask)
-{
-    // Bind the driver descriptor set.
-    handleDirtyDriverUniformsBindingImpl(mRenderPassCommands, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                         &mDriverUniforms[PipelineType::Graphics]);
-    return angle::Result::Continue;
-}
-
-angle::Result ContextVk::handleDirtyComputeDriverUniformsBinding()
-{
-    // Bind the driver descriptor set.
-    handleDirtyDriverUniformsBindingImpl(mOutsideRenderPassCommands, VK_PIPELINE_BIND_POINT_COMPUTE,
-                                         &mDriverUniforms[PipelineType::Compute]);
-    return angle::Result::Continue;
-}
-
-angle::Result ContextVk::allocateDriverUniforms(size_t driverUniformsSize,
-                                                DriverUniformsDescriptorSet *driverUniforms,
-                                                uint8_t **ptrOut,
-                                                bool *newBufferOut)
-{
-    // Allocate a new region in the dynamic buffer. The allocate call may put buffer into dynamic
-    // buffer's mInflightBuffers. During command submission time, these in-flight buffers are added
-    // into share group's mResourceUseList which will ensure they get tagged with queue serial
-    // number before moving them into the free list.
-    ANGLE_TRY(driverUniforms->dynamicBuffer.allocate(this, driverUniformsSize,
-                                                     &driverUniforms->currentBuffer, newBufferOut));
-
-    *ptrOut = driverUniforms->currentBuffer->getMappedMemory();
-
-    return angle::Result::Continue;
-}
-
-angle::Result ContextVk::updateDriverUniformsDescriptorSet(
-    vk::CommandBufferHelperCommon *commandBufferHelper,
-    bool newBuffer,
-    size_t driverUniformsSize,
-    PipelineType pipelineType)
-{
-    DriverUniformsDescriptorSet &driverUniforms = mDriverUniforms[pipelineType];
-
-    ANGLE_TRY(driverUniforms.currentBuffer->flush(mRenderer));
-
-    if (!newBuffer)
-    {
-        return angle::Result::Continue;
-    }
-
-    // Look up in the cache first
-    vk::DescriptorSetDescBuilder desc;
-    desc.updateUniformWrite(1);
-    desc.updateUniformBuffer(0, *driverUniforms.currentBuffer, driverUniformsSize);
-
-    vk::SharedDescriptorSetCacheKey newSharedCacheKey;
-    ANGLE_TRY(mDriverUniformsDescriptorPools[pipelineType].getOrAllocateDescriptorSet(
-        this, commandBufferHelper, desc.getDesc(), driverUniforms.descriptorSetLayout.get(),
-        &driverUniforms.descriptorPoolBinding, &driverUniforms.descriptorSet, &newSharedCacheKey));
-
-    desc.updateImagesAndBuffersWithSharedCacheKey(newSharedCacheKey);
-
-    if (newSharedCacheKey == nullptr)
-    {
-        // Cache hit. The descriptor pool that this descriptor set was allocated from needs to be
-        // retained each time the descriptor set is used in a new command.
-        commandBufferHelper->retainResource(&driverUniforms.descriptorPoolBinding.get());
-        return angle::Result::Continue;
-    }
-
-    // Update the driver uniform descriptor set.
-    VkDescriptorBufferInfo &bufferInfo = mUpdateDescriptorSetsBuilder.allocDescriptorBufferInfo();
-    bufferInfo.buffer                  = driverUniforms.currentBuffer->getBuffer().getHandle();
-    bufferInfo.offset                  = 0;
-    bufferInfo.range                   = driverUniformsSize;
-
-    VkWriteDescriptorSet &writeInfo = mUpdateDescriptorSetsBuilder.allocWriteDescriptorSet();
-    writeInfo.sType                 = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    writeInfo.dstSet                = driverUniforms.descriptorSet;
-    writeInfo.dstBinding            = 0;
-    writeInfo.dstArrayElement       = 0;
-    writeInfo.descriptorCount       = 1;
-    writeInfo.descriptorType        = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-    writeInfo.pImageInfo            = nullptr;
-    writeInfo.pTexelBufferView      = nullptr;
-    writeInfo.pBufferInfo           = &bufferInfo;
+    mOutsideRenderPassCommands->getCommandBuffer().pushConstants(
+        executableVk->getPipelineLayout(), getRenderer()->getSupportedVulkanShaderStageMask(), 0,
+        driverUniformSize, &driverUniforms);
 
     return angle::Result::Continue;
 }
@@ -6671,10 +6453,7 @@ angle::Result ContextVk::flushAndGetSerial(const vk::Semaphore *signalSemaphore,
     // they get retained properly until GPU completes. We do not add current buffer into
     // resourceUseList since they never get reused or freed until context gets destroyed, at which
     // time we always wait for GPU to finish before destroying the dynamic buffers.
-    for (DriverUniformsDescriptorSet &driverUniform : mDriverUniforms)
-    {
-        driverUniform.dynamicBuffer.releaseInFlightBuffersToResourceUseList(this);
-    }
+
     mDefaultUniformStorage.releaseInFlightBuffersToResourceUseList(this);
 
     if (mHasInFlightStreamedVertexBuffers.any())
@@ -6686,7 +6465,7 @@ angle::Result ContextVk::flushAndGetSerial(const vk::Semaphore *signalSemaphore,
         mHasInFlightStreamedVertexBuffers.reset();
     }
 
-    ANGLE_TRY(submitFrame(signalSemaphore, submitSerialOut));
+    ANGLE_TRY(submitFrame(signalSemaphore, Submit::AllCommands, submitSerialOut));
 
     ASSERT(mWaitSemaphores.empty());
     ASSERT(mWaitSemaphoreStageMasks.empty());
@@ -6863,16 +6642,6 @@ void ContextVk::invalidateDefaultAttributes(const gl::AttributesMask &dirtyMask)
         mGraphicsDirtyBits.set(DIRTY_BIT_DEFAULT_ATTRIBS);
         mGraphicsDirtyBits.set(DIRTY_BIT_VERTEX_BUFFERS);
     }
-}
-
-vk::DescriptorSetLayoutDesc ContextVk::getDriverUniformsDescriptorSetDesc() const
-{
-    constexpr VkShaderStageFlags kShaderStages =
-        VK_SHADER_STAGE_ALL_GRAPHICS | VK_SHADER_STAGE_COMPUTE_BIT;
-
-    vk::DescriptorSetLayoutDesc desc;
-    desc.update(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1, kShaderStages, nullptr);
-    return desc;
 }
 
 bool ContextVk::shouldEmulateSeamfulCubeMapSampling() const
@@ -7226,6 +6995,24 @@ bool ContextVk::shouldConvertUint8VkIndexType(gl::DrawElementsType glIndexType) 
 {
     return (glIndexType == gl::DrawElementsType::UnsignedByte &&
             !mRenderer->getFeatures().supportsIndexTypeUint8.enabled);
+}
+
+uint32_t ContextVk::getDriverUniformSize(PipelineType pipelineType) const
+{
+    if (pipelineType == PipelineType::Compute)
+    {
+        return sizeof(ComputeDriverUniforms);
+    }
+
+    ASSERT(pipelineType == PipelineType::Graphics);
+    if (shouldUseGraphicsDriverUniformsExtended(this))
+    {
+        return sizeof(GraphicsDriverUniformsExtended);
+    }
+    else
+    {
+        return sizeof(GraphicsDriverUniforms);
+    }
 }
 
 angle::Result ContextVk::submitOutsideRenderPassCommandsImpl()

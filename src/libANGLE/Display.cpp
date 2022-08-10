@@ -978,7 +978,6 @@ Error Display::initialize()
 
     gl::InitializeDebugMutexIfNeeded();
 
-    SCOPED_ANGLE_HISTOGRAM_TIMER("GPU.ANGLE.DisplayInitializeMS");
     ANGLE_TRACE_EVENT0("gpu.angle", "egl::Display::initialize");
 
     if (isInitialized())
@@ -1010,6 +1009,11 @@ Error Display::initialize()
         // config.second.conformant |= EGL_OPENGL_ES_BIT;
 
         config.second.renderableType |= EGL_OPENGL_ES_BIT;
+
+        // If we aren't using desktop GL entry points, remove desktop GL support from all configs
+#if !defined(ANGLE_ENABLE_GL_DESKTOP_FRONTEND)
+        config.second.renderableType &= ~EGL_OPENGL_BIT;
+#endif
     }
 
     if (!mState.featuresAllDisabled)
@@ -1069,10 +1073,10 @@ Error Display::destroyInvalidEglObjects()
     {
         // Retrieve objects to be destroyed
         std::lock_guard<std::mutex> lock(mInvalidEglObjectsMutex);
-        images   = mInvalidImageSet;
-        streams  = mInvalidStreamSet;
-        surfaces = mInvalidSurfaceSet;
-        syncs    = mInvalidSyncSet;
+        images   = std::move(mInvalidImageSet);
+        streams  = std::move(mInvalidStreamSet);
+        surfaces = std::move(mInvalidSurfaceSet);
+        syncs    = std::move(mInvalidSyncSet);
 
         // Update invalid object sets
         mInvalidImageSet.clear();

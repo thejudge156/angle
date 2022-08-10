@@ -6494,6 +6494,35 @@ void main()
     EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
 }
 
+// Tests that rewriting samplers in structs works when passed as function argument.  In this test,
+// the function references another struct, which is not being modified.  Regression test for AST
+// validation applied to a multipass transformation, where references to declarations were attempted
+// to be validated without having the entire shader.  In this case, the reference to S2 was flagged
+// as invalid because S2's declaration was not visible.
+TEST_P(GLSLTest, SamplerInStructAsFunctionArg)
+{
+    const char kFS[] = R"(precision mediump float;
+struct S { sampler2D samp; bool b; };
+struct S2 { float f; };
+
+uniform S us;
+
+float f(S s)
+{
+    S2 s2;
+    s2.f = float(s.b);
+    return s2.f;
+}
+
+void main()
+{
+    gl_FragColor = vec4(f(us), 0, 0, 1);
+})";
+
+    CompileShader(GL_FRAGMENT_SHADER, kFS);
+    ASSERT_GL_NO_ERROR();
+}
+
 // Tests two nameless struct uniforms.
 TEST_P(GLSLTest, TwoEmbeddedStructUniforms)
 {
@@ -9756,7 +9785,7 @@ foo
     ANGLE_GL_PROGRAM(program, kVS, kFS);
 }
 
-// Test that inactive output variables compile ok in combination with SH_INIT_OUTPUT_VARIABLES
+// Test that inactive output variables compile ok in combination with initOutputVariables
 // (which is enabled on WebGL).
 TEST_P(WebGL2GLSLTest, InactiveOutput)
 {
@@ -15908,7 +15937,6 @@ void main()
 
     ANGLE_GL_PROGRAM(testProgram, kVS, kFS);
 }
-
 }  // anonymous namespace
 
 ANGLE_INSTANTIATE_TEST_ES2_AND_ES3_AND(GLSLTest,

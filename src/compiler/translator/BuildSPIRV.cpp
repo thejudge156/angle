@@ -479,7 +479,7 @@ void SpirvTypeSpec::onVectorComponentSelection()
 }
 
 SPIRVBuilder::SPIRVBuilder(TCompiler *compiler,
-                           ShCompileOptions compileOptions,
+                           const ShCompileOptions &compileOptions,
                            ShHashFunction64 hashFunction,
                            NameMap &nameMap)
     : mCompiler(compiler),
@@ -667,7 +667,7 @@ spirv::IdRef SPIRVBuilder::getFunctionTypeId(spirv::IdRef returnTypeId,
 
 SpirvDecorations SPIRVBuilder::getDecorations(const TType &type)
 {
-    const bool enablePrecision = (mCompileOptions & SH_IGNORE_PRECISION_QUALIFIERS) == 0;
+    const bool enablePrecision = !mCompileOptions.ignorePrecisionQualifiers;
     const TPrecision precision = type.getPrecision();
 
     SpirvDecorations decorations;
@@ -1733,20 +1733,20 @@ void SPIRVBuilder::writePerVertexBuiltIns(const TType &type, spirv::IdRef typeId
 void SPIRVBuilder::writeInterfaceVariableDecorations(const TType &type, spirv::IdRef variableId)
 {
     const TLayoutQualifier &layoutQualifier = type.getLayoutQualifier();
-
-    const bool isVarying = IsVarying(type.getQualifier());
+    const bool isVarying                    = IsVarying(type.getQualifier());
     const bool needsSetBinding =
-        IsSampler(type.getBasicType()) ||
-        (type.isInterfaceBlock() &&
-         (type.getQualifier() == EvqUniform || type.getQualifier() == EvqBuffer)) ||
-        IsImage(type.getBasicType()) || IsSubpassInputType(type.getBasicType());
+        !layoutQualifier.pushConstant &&
+        (IsSampler(type.getBasicType()) ||
+         (type.isInterfaceBlock() &&
+          (type.getQualifier() == EvqUniform || type.getQualifier() == EvqBuffer)) ||
+         IsImage(type.getBasicType()) || IsSubpassInputType(type.getBasicType()));
     const bool needsLocation = type.getQualifier() == EvqAttribute ||
                                type.getQualifier() == EvqVertexIn ||
                                type.getQualifier() == EvqFragmentOut || isVarying;
     const bool needsInputAttachmentIndex = IsSubpassInputType(type.getBasicType());
     const bool needsBlendIndex =
         type.getQualifier() == EvqFragmentOut && layoutQualifier.index >= 0;
-    const bool needsYuvDecorate = (mCompileOptions & SH_ADD_VULKAN_YUV_LAYOUT_QUALIFIER) != 0 &&
+    const bool needsYuvDecorate = mCompileOptions.addVulkanYUVLayoutQualifier &&
                                   type.getQualifier() == EvqFragmentOut && layoutQualifier.yuv;
 
     // If the resource declaration requires set & binding, add the DescriptorSet and Binding

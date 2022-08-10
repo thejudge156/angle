@@ -1257,9 +1257,22 @@ TracePerfTest::TracePerfTest(std::unique_ptr<const TracePerfParams> params)
     {
         addExtensionPrerequisite("GL_KHR_texture_compression_astc_ldr");
     }
+
     if (traceNameIs("mortal_kombat"))
     {
         addExtensionPrerequisite("GL_EXT_texture_buffer");
+    }
+
+    if (traceNameIs("ni_no_kuni"))
+    {
+        addExtensionPrerequisite("GL_EXT_shader_framebuffer_fetch");
+        addExtensionPrerequisite("GL_KHR_texture_compression_astc_ldr");
+    }
+
+    if (traceNameIs("octopath_traveler"))
+    {
+        addExtensionPrerequisite("GL_EXT_shader_framebuffer_fetch");
+        addExtensionPrerequisite("GL_KHR_texture_compression_astc_ldr");
     }
 
     // glDebugMessageControlKHR and glDebugMessageCallbackKHR crash on ARM GLES1.
@@ -1960,7 +1973,7 @@ void TracePerfTest::onReplayDiscardFramebufferEXT(GLenum target,
 void TracePerfTest::swap()
 {
     // Capture a screenshot if enabled.
-    if (gScreenShotDir != nullptr && !mScreenshotSaved &&
+    if (gScreenShotDir != nullptr && gSaveScreenshots && !mScreenshotSaved &&
         static_cast<uint32_t>(gScreenShotFrame) == mCurrentIteration)
     {
         std::stringstream screenshotNameStr;

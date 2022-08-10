@@ -13,12 +13,13 @@
 
 namespace rx
 {
+class ContextGL;
 class FunctionsGL;
 
 class CompilerGL : public CompilerImpl
 {
   public:
-    CompilerGL(const FunctionsGL *functions);
+    CompilerGL(const ContextGL *);
     ~CompilerGL() override {}
 
     ShShaderOutput getTranslatorOutputType() const override;
