@@ -1941,6 +1941,10 @@ void RendererVk::queryDeviceExtensionFeatures(const vk::ExtensionNameList &devic
     mDepthClipControlFeatures.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEPTH_CLIP_CONTROL_FEATURES_EXT;
 
+    mPrimitivesGeneratedQueryFeatures = {};
+    mPrimitivesGeneratedQueryFeatures.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRIMITIVES_GENERATED_QUERY_FEATURES_EXT;
+
     mBlendOperationAdvancedFeatures = {};
     mBlendOperationAdvancedFeatures.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BLEND_OPERATION_ADVANCED_FEATURES_EXT;
@@ -1960,6 +1964,10 @@ void RendererVk::queryDeviceExtensionFeatures(const vk::ExtensionNameList &devic
     mFragmentShadingRateFeatures = {};
     mFragmentShadingRateFeatures.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADING_RATE_FEATURES_KHR;
+
+    mImagelessFramebufferFeatures = {};
+    mImagelessFramebufferFeatures.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGELESS_FRAMEBUFFER_FEATURES_KHR;
 
     if (!vkGetPhysicalDeviceProperties2KHR || !vkGetPhysicalDeviceFeatures2KHR)
     {
@@ -2093,6 +2101,11 @@ void RendererVk::queryDeviceExtensionFeatures(const vk::ExtensionNameList &devic
         vk::AddToPNextChain(&deviceFeatures, &mDepthClipControlFeatures);
     }
 
+    if (ExtensionFound(VK_EXT_PRIMITIVES_GENERATED_QUERY_EXTENSION_NAME, deviceExtensionNames))
+    {
+        vk::AddToPNextChain(&deviceFeatures, &mPrimitivesGeneratedQueryFeatures);
+    }
+
     if (ExtensionFound(VK_EXT_BLEND_OPERATION_ADVANCED_EXTENSION_NAME, deviceExtensionNames))
     {
         vk::AddToPNextChain(&deviceFeatures, &mBlendOperationAdvancedFeatures);
@@ -2116,6 +2129,11 @@ void RendererVk::queryDeviceExtensionFeatures(const vk::ExtensionNameList &devic
     if (ExtensionFound(VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME, deviceExtensionNames))
     {
         vk::AddToPNextChain(&deviceFeatures, &mFragmentShadingRateFeatures);
+    }
+
+    if (ExtensionFound(VK_KHR_IMAGELESS_FRAMEBUFFER_EXTENSION_NAME, deviceExtensionNames))
+    {
+        vk::AddToPNextChain(&deviceFeatures, &mImagelessFramebufferFeatures);
     }
 
     vkGetPhysicalDeviceFeatures2KHR(mPhysicalDevice, &deviceFeatures);
@@ -2145,11 +2163,13 @@ void RendererVk::queryDeviceExtensionFeatures(const vk::ExtensionNameList &devic
     mProtectedMemoryProperties.pNext                 = nullptr;
     mHostQueryResetFeatures.pNext                    = nullptr;
     mDepthClipControlFeatures.pNext                  = nullptr;
+    mPrimitivesGeneratedQueryFeatures.pNext          = nullptr;
     mBlendOperationAdvancedFeatures.pNext            = nullptr;
     mPipelineCreationCacheControlFeatures.pNext      = nullptr;
     mExtendedDynamicStateFeatures.pNext              = nullptr;
     mExtendedDynamicState2Features.pNext             = nullptr;
     mFragmentShadingRateFeatures.pNext               = nullptr;
+    mImagelessFramebufferFeatures.pNext              = nullptr;
 }
 
 angle::Result RendererVk::initializeDevice(DisplayVk *displayVk, uint32_t queueFamilyIndex)
@@ -2413,6 +2433,7 @@ angle::Result RendererVk::initializeDevice(DisplayVk *displayVk, uint32_t queueF
         mPhysicalDeviceFeatures.fragmentStoresAndAtomics;
     // Used to emulate the primitives generated query:
     mEnabledFeatures.features.pipelineStatisticsQuery =
+        !getFeatures().supportsPrimitivesGeneratedQuery.enabled &&
         getFeatures().supportsPipelineStatisticsQuery.enabled;
     // Used to support geometry shaders:
     mEnabledFeatures.features.geometryShader = mPhysicalDeviceFeatures.geometryShader;
@@ -2606,6 +2627,12 @@ angle::Result RendererVk::initializeDevice(DisplayVk *displayVk, uint32_t queueF
         vk::AddToPNextChain(&mEnabledFeatures, &mDepthClipControlFeatures);
     }
 
+    if (getFeatures().supportsPrimitivesGeneratedQuery.enabled)
+    {
+        mEnabledDeviceExtensions.push_back(VK_EXT_PRIMITIVES_GENERATED_QUERY_EXTENSION_NAME);
+        vk::AddToPNextChain(&mEnabledFeatures, &mPrimitivesGeneratedQueryFeatures);
+    }
+
     if (getFeatures().supportsBlendOperationAdvanced.enabled)
     {
         mEnabledDeviceExtensions.push_back(VK_EXT_BLEND_OPERATION_ADVANCED_EXTENSION_NAME);
@@ -2628,6 +2655,12 @@ angle::Result RendererVk::initializeDevice(DisplayVk *displayVk, uint32_t queueF
     {
         mEnabledDeviceExtensions.push_back(VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
         vk::AddToPNextChain(&mEnabledFeatures, &mFragmentShadingRateFeatures);
+    }
+
+    if (getFeatures().supportsImagelessFramebuffer.enabled)
+    {
+        mEnabledDeviceExtensions.push_back(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME);
+        vk::AddToPNextChain(&mEnabledFeatures, &mImagelessFramebufferFeatures);
     }
 
     mCurrentQueueFamilyIndex = queueFamilyIndex;
@@ -3329,6 +3362,13 @@ void RendererVk::initFeatures(DisplayVk *displayVk,
     ANGLE_FEATURE_CONDITION(&mFeatures, supportsDepthClipControl,
                             mDepthClipControlFeatures.depthClipControl == VK_TRUE);
 
+    // Disable this feature for now because VK_EXT_primitives_generated_query is not tested
+    // https://anglebug.com/7554, https://anglebug.com/5430
+    //    ANGLE_FEATURE_CONDITION(&mFeatures, supportsPrimitivesGeneratedQuery,
+    //                            mPrimitivesGeneratedQueryFeatures.primitivesGeneratedQuery ==
+    //                            VK_TRUE);
+    ANGLE_FEATURE_CONDITION(&mFeatures, supportsPrimitivesGeneratedQuery, false);
+
     ANGLE_FEATURE_CONDITION(
         &mFeatures, supportsBlendOperationAdvanced,
         ExtensionFound(VK_EXT_BLEND_OPERATION_ADVANCED_EXTENSION_NAME, deviceExtensionNames));
@@ -3522,8 +3562,6 @@ void RendererVk::initFeatures(DisplayVk *displayVk,
     ANGLE_FEATURE_CONDITION(&mFeatures, supportsImageCubeArray,
                             mPhysicalDeviceFeatures.imageCubeArray == VK_TRUE);
 
-    // TODO: Only enable if VK_EXT_primitives_generated_query is not present.
-    // http://anglebug.com/5430
     ANGLE_FEATURE_CONDITION(&mFeatures, supportsPipelineStatisticsQuery,
                             mPhysicalDeviceFeatures.pipelineStatisticsQuery == VK_TRUE);
 
@@ -3649,6 +3687,9 @@ void RendererVk::initFeatures(DisplayVk *displayVk,
     ANGLE_FEATURE_CONDITION(&mFeatures, supportsFragmentShadingRate,
                             canSupportFragmentShadingRate(deviceExtensionNames));
 
+    ANGLE_FEATURE_CONDITION(&mFeatures, supportsImagelessFramebuffer,
+                            mImagelessFramebufferFeatures.imagelessFramebuffer == VK_TRUE);
+
     // The following drivers are known to key the pipeline cache blobs with vertex input and
     // fragment output state, causing draw-time pipeline creation to miss the cache regardless of
     // warmup:
@@ -3670,6 +3711,11 @@ void RendererVk::initFeatures(DisplayVk *displayVk,
     ANGLE_FEATURE_CONDITION(&mFeatures, warmUpPipelineCacheAtLink,
                             !isARM && !isPowerVR && !isQualcommProprietary &&
                                 !(IsLinux() && isIntel) && !(IsChromeOS() && isSwiftShader));
+
+    // On ARM, dynamic state for stencil write mask doesn't work correctly in the presence of
+    // discard or alpha to coverage, if the static state provided when creating the pipeline has a
+    // value of 0.
+    ANGLE_FEATURE_CONDITION(&mFeatures, useNonZeroStencilWriteMaskStaticState, isARM);
 
     // On ARM, per-sample shading is not enabled despite the presence of a Sample decoration.  As a
     // workaround, per-sample shading is inferred by ANGLE and explicitly enabled by the API.
