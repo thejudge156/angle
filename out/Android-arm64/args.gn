@@ -13,9 +13,9 @@ target_cpu = "arm64"
 android32_ndk_api_level = 26
 android64_ndk_api_level = 26
 
-# Disable all backends except GLES
-angle_enable_gl = true
-angle_enable_vulkan = false
+# Disable all backends except Vulkan
+angle_enable_gl = false
+angle_enable_vulkan = true
 angle_enable_d3d9 = false
 angle_enable_d3d11 = false
 angle_enable_null = false
@@ -28,7 +28,8 @@ angle_enable_desktop_glsl = true
 angle_enable_swiftshader = false
 
 # Disable all shader translator targets except ESSL
-angle_enable_essl = true
+angle_enable_glsl = true
+angle_use_spirv_gen_through_glslang = true
 
 #angle_enable_commit_id = false
 
