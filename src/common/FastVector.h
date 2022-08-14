@@ -44,8 +44,11 @@ class WrapIter
     }
 
     bool operator==(const WrapIter &x) const { return mIter == x.mIter; }
-
     bool operator!=(const WrapIter &x) const { return mIter != x.mIter; }
+    bool operator<(const WrapIter &x) const { return mIter < x.mIter; }
+    bool operator<=(const WrapIter &x) const { return mIter <= x.mIter; }
+    bool operator>(const WrapIter &x) const { return mIter > x.mIter; }
+    bool operator>=(const WrapIter &x) const { return mIter >= x.mIter; }
 
     WrapIter &operator++()
     {
@@ -157,6 +160,7 @@ class FastVector final
 
     // Specialty function that removes a known element and might shuffle the list.
     void remove_and_permute(const value_type &element);
+    void remove_and_permute(iterator pos);
 
   private:
     void assign_from_initializer_list(std::initializer_list<value_type> init);
@@ -491,6 +495,16 @@ ANGLE_INLINE void FastVector<T, N, Storage>::remove_and_permute(const value_type
 }
 
 template <class T, size_t N, class Storage>
+ANGLE_INLINE void FastVector<T, N, Storage>::remove_and_permute(iterator pos)
+{
+    ASSERT(pos >= begin());
+    ASSERT(pos < end());
+    size_t len = mSize - 1;
+    *pos       = std::move(mData[len]);
+    pop_back();
+}
+
+template <class T, size_t N, class Storage>
 void FastVector<T, N, Storage>::ensure_capacity(size_t capacity)
 {
     // We have a minimum capacity of N.
@@ -568,8 +582,8 @@ class FlatUnorderedMap final
     using iterator       = typename Storage::iterator;
     using const_iterator = typename Storage::const_iterator;
 
-    FlatUnorderedMap() {}
-    ~FlatUnorderedMap() {}
+    FlatUnorderedMap()  = default;
+    ~FlatUnorderedMap() = default;
 
     iterator begin() { return mData.begin(); }
     const_iterator begin() const { return mData.begin(); }
@@ -612,11 +626,15 @@ class FlatUnorderedMap final
         return mData.back().second;
     }
 
-    void insert(const Key &key, Value value)
+    void insert(Pair pair)
     {
-        ASSERT(!contains(key));
-        mData.push_back(Pair(key, value));
+        ASSERT(!contains(pair.first));
+        mData.push_back(std::move(pair));
     }
+
+    void insert(const Key &key, Value value) { insert(Pair(key, value)); }
+
+    void erase(iterator pos) { mData.remove_and_permute(pos); }
 
     bool contains(const Key &key) const { return find(key) != end(); }
 
@@ -644,39 +662,66 @@ template <class T, size_t N>
 class FlatUnorderedSet final
 {
   public:
-    FlatUnorderedSet() {}
-    ~FlatUnorderedSet() {}
+    using Storage        = FastVector<T, N>;
+    using iterator       = typename Storage::iterator;
+    using const_iterator = typename Storage::const_iterator;
+
+    FlatUnorderedSet()  = default;
+    ~FlatUnorderedSet() = default;
+
+    iterator begin() { return mData.begin(); }
+    const_iterator begin() const { return mData.begin(); }
+    iterator end() { return mData.end(); }
+    const_iterator end() const { return mData.end(); }
+
+    iterator find(const T &value)
+    {
+        for (auto it = mData.begin(); it != mData.end(); ++it)
+        {
+            if (*it == value)
+            {
+                return it;
+            }
+        }
+        return mData.end();
+    }
+
+    const_iterator find(const T &value) const
+    {
+        for (auto it = mData.begin(); it != mData.end(); ++it)
+        {
+            if (*it == value)
+            {
+                return it;
+            }
+        }
+        return mData.end();
+    }
 
     bool empty() const { return mData.empty(); }
 
-    void insert(T value)
+    void insert(const T &value)
     {
         ASSERT(!contains(value));
         mData.push_back(value);
     }
 
-    void remove(T value)
+    void erase(const T &value)
     {
         ASSERT(contains(value));
         mData.remove_and_permute(value);
     }
 
-    bool contains(T needle) const
-    {
-        for (T value : mData)
-        {
-            if (value == needle)
-                return true;
-        }
-        return false;
-    }
+    void remove(const T &value) { erase(value); }
+
+    bool contains(const T &value) const { return find(value) != end(); }
 
     void clear() { mData.clear(); }
 
     bool operator==(const FlatUnorderedSet<T, N> &other) const { return mData == other.mData; }
 
   private:
-    FastVector<T, N> mData;
+    Storage mData;
 };
 
 class FastIntegerSet final

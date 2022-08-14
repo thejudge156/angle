@@ -12,7 +12,6 @@
 
 #include <algorithm>
 #include <iterator>
-#include <map>
 #include <sstream>
 #include <vector>
 
@@ -90,7 +89,9 @@ namespace
 
 constexpr angle::SubjectIndex kGPUSwitchedSubjectIndex = 0;
 
-typedef std::map<EGLNativeWindowType, Surface *> WindowSurfaceMap;
+static constexpr size_t kWindowSurfaceMapSize = 32;
+typedef angle::FlatUnorderedMap<EGLNativeWindowType, Surface *, kWindowSurfaceMapSize>
+    WindowSurfaceMap;
 // Get a map of all EGL window surfaces to validate that no window has more than one EGL surface
 // associated with it.
 static WindowSurfaceMap *GetWindowSurfaces()
@@ -132,19 +133,23 @@ struct ANGLEPlatformDisplay
     EGLAttrib deviceIdLow{0};
 };
 
-inline bool operator<(const ANGLEPlatformDisplay &a, const ANGLEPlatformDisplay &b)
+inline bool operator==(const ANGLEPlatformDisplay &a, const ANGLEPlatformDisplay &b)
 {
-    return a.tie() < b.tie();
+    return a.tie() == b.tie();
 }
 
-typedef std::map<ANGLEPlatformDisplay, Display *> ANGLEPlatformDisplayMap;
+static constexpr size_t kANGLEPlatformDisplayMapSize = 9;
+typedef angle::FlatUnorderedMap<ANGLEPlatformDisplay, Display *, kANGLEPlatformDisplayMapSize>
+    ANGLEPlatformDisplayMap;
 static ANGLEPlatformDisplayMap *GetANGLEPlatformDisplayMap()
 {
     static angle::base::NoDestructor<ANGLEPlatformDisplayMap> displays;
     return displays.get();
 }
 
-typedef std::map<Device *, Display *> DevicePlatformDisplayMap;
+static constexpr size_t kDevicePlatformDisplayMapSize = 8;
+typedef angle::FlatUnorderedMap<Device *, Display *, kDevicePlatformDisplayMapSize>
+    DevicePlatformDisplayMap;
 static DevicePlatformDisplayMap *GetDevicePlatformDisplayMap()
 {
     static angle::base::NoDestructor<DevicePlatformDisplayMap> displays;
@@ -1482,13 +1487,11 @@ Error Display::createContext(const Config *configuration,
     // Check context creation attributes to see if we are using EGL_ANGLE_program_cache_control.
     // If not, keep caching enabled for EGL_ANDROID_blob_cache, which can have its callbacks set
     // at any time.
-    bool usesProgramCacheControl =
-        mAttributeMap.contains(EGL_CONTEXT_PROGRAM_BINARY_CACHE_ENABLED_ANGLE);
+    bool usesProgramCacheControl = attribs.contains(EGL_CONTEXT_PROGRAM_BINARY_CACHE_ENABLED_ANGLE);
     if (usesProgramCacheControl)
     {
         bool programCacheControlEnabled =
-            (mAttributeMap.get(EGL_CONTEXT_PROGRAM_BINARY_CACHE_ENABLED_ANGLE, GL_FALSE) ==
-             GL_TRUE);
+            (attribs.get(EGL_CONTEXT_PROGRAM_BINARY_CACHE_ENABLED_ANGLE, GL_FALSE) == GL_TRUE);
         // A program cache size of zero indicates it should be disabled.
         if (!programCacheControlEnabled || mMemoryProgramCache.maxSize() == 0)
         {
