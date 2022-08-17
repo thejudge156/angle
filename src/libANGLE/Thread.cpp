@@ -15,7 +15,9 @@
 
 namespace angle
 {
+#if defined(ANGLE_USE_ANDROID_TLS_SLOT)
 bool gUseAndroidOpenGLTlsSlot;
+#endif
 
 void PthreadKeyDestructorCallback(void *ptr)
 {
@@ -26,9 +28,8 @@ void PthreadKeyDestructorCallback(void *ptr)
     for (egl::Display *display : displays)
     {
         ASSERT(display);
-        // Remove the thread being destroyed from display's active thread set
-        // and perform any necessary cleanup.
-        display->removeActiveThreadAndPerformCleanup(thread);
+        // Perform necessary cleanup.
+        display->threadCleanup(thread);
     }
 }
 }  // namespace angle

@@ -36,12 +36,19 @@ static_assert(std::is_trivially_destructible<decltype(g_LastContext)>::value,
 
 void SetContextToAndroidOpenGLTLSSlot(gl::Context *value)
 {
-#if defined(ANGLE_PLATFORM_ANDROID)
+#if defined(ANGLE_USE_ANDROID_TLS_SLOT)
     if (angle::gUseAndroidOpenGLTlsSlot)
     {
         ANGLE_ANDROID_GET_GL_TLS()[angle::kAndroidOpenGLTlsSlot] = static_cast<void *>(value);
     }
 #endif
+}
+
+// Called only on Android platform
+[[maybe_unused]] void ThreadCleanupCallback(void *ptr)
+{
+    ANGLE_SCOPED_GLOBAL_LOCK();
+    angle::PthreadKeyDestructorCallback(ptr);
 }
 
 Thread *AllocateCurrentThread()
@@ -73,7 +80,7 @@ Thread *AllocateCurrentThread()
 
     // Create thread cleanup TLS slot
     auto CreateThreadCleanupTLSIndex = []() {
-        gThreadCleanupTLSIndex = CreateTLSIndex(angle::PthreadKeyDestructorCallback);
+        gThreadCleanupTLSIndex = CreateTLSIndex(ThreadCleanupCallback);
     };
     pthread_once(&keyOnce, CreateThreadCleanupTLSIndex);
     ASSERT(gThreadCleanupTLSIndex != TLS_INVALID_INDEX);
