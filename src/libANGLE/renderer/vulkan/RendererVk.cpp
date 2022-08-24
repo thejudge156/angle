@@ -666,7 +666,7 @@ DebugMessageReport ShouldReportDebugMessage(RendererVk *renderer,
     }
 
     // Check with non-syncval messages:
-    const std::vector<const char *> skippedMessages = renderer->getSkippedValidationMessages();
+    const std::vector<const char *> &skippedMessages = renderer->getSkippedValidationMessages();
     if (IsMessageInSkipList(message, skippedMessages.data(), skippedMessages.size()))
     {
         return DebugMessageReport::Ignore;
@@ -2454,6 +2454,15 @@ angle::Result RendererVk::initializeDevice(DisplayVk *displayVk, uint32_t queueF
         mEnabledDeviceExtensions.push_back(VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME);
     }
 
+    if (getFeatures().supportsTimestampSurfaceAttribute.enabled)
+    {
+        mEnabledDeviceExtensions.push_back(VK_GOOGLE_DISPLAY_TIMING_EXTENSION_NAME);
+#if !defined(ANGLE_SHARED_LIBVULKAN)
+        InitGetPastPresentationTimingGoogleFunction(mDevice);
+#endif  // !defined(ANGLE_SHARED_LIBVULKAN)
+        ASSERT(vkGetPastPresentationTimingGOOGLE);
+    }
+
     std::sort(mEnabledDeviceExtensions.begin(), mEnabledDeviceExtensions.end(), StrLess);
     ANGLE_VK_TRY(displayVk,
                  VerifyExtensionsPresent(deviceExtensionNames, mEnabledDeviceExtensions));
@@ -2769,6 +2778,10 @@ angle::Result RendererVk::initializeDevice(DisplayVk *displayVk, uint32_t queueF
         vk::AppendToPNextChain(&createInfo, mEnabledFeatures.pNext);
     }
 
+    // Create the list of expected VVL messages to suppress.  Done before creating the device, as it
+    // may also generate messages.
+    initializeValidationMessageSuppressions();
+
     ANGLE_VK_TRY(displayVk, vkCreateDevice(mPhysicalDevice, &createInfo, nullptr, &mDevice));
 #if defined(ANGLE_SHARED_LIBVULKAN)
     // Load volk if we are loading dynamically
@@ -2867,8 +2880,6 @@ angle::Result RendererVk::initializeDevice(DisplayVk *displayVk, uint32_t queueF
         mSupportedVulkanShaderStageMask |= VK_SHADER_STAGE_GEOMETRY_BIT;
     }
     mSupportedVulkanPipelineStageMask = ~unsupportedStages;
-
-    initializeValidationMessageSuppressions();
 
     return angle::Result::Continue;
 }
@@ -3758,6 +3769,10 @@ void RendererVk::initFeatures(DisplayVk *displayVk,
     ANGLE_FEATURE_CONDITION(&mFeatures, supportsExtendedDynamicState2,
                             mExtendedDynamicState2Features.extendedDynamicState2 == VK_TRUE);
 
+    // Avoid dynamic state for vertex input binding stride on buggy drivers.
+    ANGLE_FEATURE_CONDITION(&mFeatures, forceStaticVertexStrideState,
+                            mFeatures.supportsExtendedDynamicState.enabled && isARM);
+
     // Support GL_QCOM_shading_rate extension
     ANGLE_FEATURE_CONDITION(&mFeatures, supportsFragmentShadingRate,
                             canSupportFragmentShadingRate(deviceExtensionNames));
@@ -3804,6 +3819,13 @@ void RendererVk::initFeatures(DisplayVk *displayVk,
     // Force to create swapchain with continuous refresh on shared present. Disabled by default.
     // Only enable it on integrations without EGL_FRONT_BUFFER_AUTO_REFRESH_ANDROID passthrough.
     ANGLE_FEATURE_CONDITION(&mFeatures, forceContinuousRefreshOnSharedPresent, false);
+
+    // Enable setting frame timestamp surface attribute on Android platform.
+    // Frame timestamp is enabled by calling into "vkGetPastPresentationTimingGOOGLE"
+    // which, on Android platforms, makes the necessary ANativeWindow API calls.
+    ANGLE_FEATURE_CONDITION(&mFeatures, supportsTimestampSurfaceAttribute,
+                            IsAndroid() && ExtensionFound(VK_GOOGLE_DISPLAY_TIMING_EXTENSION_NAME,
+                                                          deviceExtensionNames));
 
     ApplyFeatureOverrides(&mFeatures, displayVk->getState());
 
@@ -3922,6 +3944,9 @@ void RendererVk::initializeFrontendFeatures(angle::FrontendFeatures *features) c
     // off GL error checking, and then asking ANGLE to write past the end of a buffer.
     // https://issuetracker.google.com/issues/220069903
     ANGLE_FEATURE_CONDITION(features, forceGlErrorChecking, (IsAndroid() && isSwiftShader));
+
+    // TODO(eddiehatfield): re-enable this when the BlobCache test flakes are resolved.
+    ANGLE_FEATURE_CONDITION(features, cacheCompiledShader, false);
 }
 
 angle::Result RendererVk::getPipelineCacheSize(DisplayVk *displayVk, size_t *pipelineCacheSizeOut)

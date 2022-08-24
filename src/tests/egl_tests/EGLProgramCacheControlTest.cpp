@@ -197,7 +197,19 @@ TEST_P(EGLProgramCacheControlTest, SaveAndReload)
 
     EGLDisplay display = getEGLWindow()->getDisplay();
     EGLint cacheSize   = eglProgramCacheGetAttribANGLE(display, EGL_PROGRAM_CACHE_SIZE_ANGLE);
-    EXPECT_EQ(1, cacheSize);
+    // TODO(eddiehatfield): the shader caching feature is currently disabled since it caused flakes.
+    // We need to fix this condition when that is resolved.
+    if (IsVulkan() && (false))
+    {
+        // ANGLE shader caching is enabled by default when using Vulkan on Android, so we expect a
+        // cache entry for each shader and the linked program.
+        EXPECT_EQ(3, cacheSize);
+    }
+    else
+    {
+        // We only expect a single cache entry for the linked program on other backends.
+        EXPECT_EQ(1, cacheSize);
+    }
 
     EGLint keySize    = 0;
     EGLint binarySize = 0;
@@ -287,7 +299,18 @@ TEST_P(EGLProgramCacheControlTest, DisableProgramCache)
 
     EGLDisplay display = getEGLWindow()->getDisplay();
     EGLint cacheSize   = eglProgramCacheGetAttribANGLE(display, EGL_PROGRAM_CACHE_SIZE_ANGLE);
-    EXPECT_EQ(0, cacheSize);
+
+    // TODO(eddiehatfield): the shader caching feature is currently disabled since it caused flakes.
+    // We need to fix this condition when that is resolved.
+    if (IsVulkan() && (false))
+    {
+        // Shader caching is enabled on vulkan by default.
+        EXPECT_EQ(2, cacheSize);
+    }
+    else
+    {
+        EXPECT_EQ(0, cacheSize);
+    }
 }
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(EGLProgramCacheControlTest);

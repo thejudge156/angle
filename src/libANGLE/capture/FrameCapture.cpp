@@ -2295,9 +2295,10 @@ void CaptureFramebufferAttachment(std::vector<CallCapture> *setupCalls,
         }
         else
         {
-            Capture(setupCalls, framebufferFuncs.framebufferTexture2D(
-                                    replayState, true, GL_FRAMEBUFFER, attachment.getBinding(),
-                                    index.getTarget(), {resourceID}, index.getLevelIndex()));
+            Capture(setupCalls,
+                    framebufferFuncs.framebufferTexture2D(
+                        replayState, true, GL_FRAMEBUFFER, attachment.getBinding(),
+                        index.getTargetOrFirstCubeFace(), {resourceID}, index.getLevelIndex()));
         }
     }
     else
@@ -4846,12 +4847,14 @@ bool SkipCall(EntryPoint entryPoint)
         case EntryPoint::GLDebugMessageInsertKHR:
         case EntryPoint::GLGetDebugMessageLog:
         case EntryPoint::GLGetDebugMessageLogKHR:
+        case EntryPoint::GLGetObjectLabel:
         case EntryPoint::GLGetObjectLabelEXT:
         case EntryPoint::GLGetObjectLabelKHR:
         case EntryPoint::GLGetObjectPtrLabelKHR:
         case EntryPoint::GLGetPointervKHR:
         case EntryPoint::GLInsertEventMarkerEXT:
         case EntryPoint::GLLabelObjectEXT:
+        case EntryPoint::GLObjectLabel:
         case EntryPoint::GLObjectLabelKHR:
         case EntryPoint::GLObjectPtrLabelKHR:
         case EntryPoint::GLPopDebugGroupKHR:
@@ -8417,7 +8420,7 @@ void WriteParamValueReplay<ParamType::TUniformLocation>(std::ostream &os,
     if (FindShaderProgramIDsInCall(call, programIDs))
     {
         ASSERT(programIDs.size() == 1);
-        os << "gShaderProgramMap[" << programIDs[0].value << "]";
+        os << programIDs[0].value;
     }
     else
     {
