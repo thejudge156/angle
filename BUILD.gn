@@ -1304,10 +1304,10 @@ template("angle_libGLESv2") {
       ":gl_prototypes",
     ]
 
-    if (angle_enable_gl_desktop_frontend) {
+    if(angle_enable_gl_desktop_frontend) {
       sources += libglesv2_gl_sources
       defines += [ "ANGLE_ENABLE_GL_DESKTOP_FRONTEND" ]
-      if (is_win) {
+      if (angle_expose_wgl_entry_points) {
         sources += [
           "src/libGLESv2/entry_points_wgl.cpp",
           "src/libGLESv2/entry_points_wgl.h",
@@ -1315,8 +1315,9 @@ template("angle_libGLESv2") {
           "src/libGLESv2/proc_table_wgl_autogen.cpp",
         ]
         defines += [ "ANGLE_EXPOSE_WGL_ENTRY_POINTS" ]
-      } else {
-        sources += [
+      }
+      if(angle_expose_glx_entry_points) {
+          sources += [
           "src/libGLESv2/entry_points_glx.cpp",
           "src/libGLESv2/entry_points_glx.h",
           "src/libGLESv2/proc_table_glx.h",
@@ -1377,7 +1378,9 @@ angle_static_library("libGLESv2_static") {
   if (angle_enable_gl_desktop_frontend) {
     sources += libglesv2_gl_sources
     defines = [ "ANGLE_ENABLE_GL_DESKTOP_FRONTEND" ]
-    if (is_win) {
+    if (angle_expose_wgl_entry_points) {
+      sources += libglesv2_gl_sources
+      defines += [ "ANGLE_ENABLE_GL_DESKTOP_FRONTEND" ]
       sources += [
         "src/libGLESv2/entry_points_wgl.cpp",
         "src/libGLESv2/entry_points_wgl.h",
@@ -1385,7 +1388,8 @@ angle_static_library("libGLESv2_static") {
         "src/libGLESv2/proc_table_wgl_autogen.cpp",
       ]
       defines += [ "ANGLE_EXPOSE_WGL_ENTRY_POINTS" ]
-    } else {
+    }
+    if(angle_expose_glx_entry_points) {
       sources += [
         "src/libGLESv2/entry_points_glx.cpp",
         "src/libGLESv2/entry_points_glx.h",

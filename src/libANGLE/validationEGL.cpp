@@ -1205,11 +1205,11 @@ bool ValidateCompatibleSurface(const ValidationContext *val,
     }
     else
     {
-        // if (!(surfaceConfig->renderableType & EGL_OPENGL_BIT))
-        // {
-        //     val->setError(EGL_BAD_MATCH, "Surface not compatible with OpenGL Desktop.");
-        //     return false;
-        // }
+        if (!(surfaceConfig->renderableType & EGL_OPENGL_BIT))
+        {
+            val->setError(EGL_BAD_MATCH, "Surface not compatible with OpenGL Desktop.");
+            return false;
+        }
     }
 
     // EGL KHR no config context

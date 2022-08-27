@@ -34,7 +34,7 @@ declare_args() {
   angle_expose_wgl_entry_points = angle_enable_gl_desktop_frontend && is_win
 
   # Expose GLX entry points by default when using Desktop GL on Linux
-  angle_expose_glx_entry_points = angle_enable_gl_desktop_frontend && is_linux
+  angle_expose_glx_entry_points = angle_enable_gl_desktop_frontend && !is_linux && !is_android
 }
 
 if (angle_has_build) {
