@@ -100,6 +100,7 @@ struct FramebufferCaptureFuncs
     {
         if (isGLES1)
         {
+            // From GL_OES_framebuffer_object
             framebufferTexture2D    = &gl::CaptureFramebufferTexture2DOES;
             framebufferRenderbuffer = &gl::CaptureFramebufferRenderbufferOES;
             bindFramebuffer         = &gl::CaptureBindFramebufferOES;
@@ -127,6 +128,33 @@ struct FramebufferCaptureFuncs
     decltype(&gl::CaptureBindRenderbuffer) bindRenderbuffer;
     decltype(&gl::CaptureGenRenderbuffers) genRenderbuffers;
     decltype(&gl::CaptureRenderbufferStorage) renderbufferStorage;
+};
+
+struct VertexArrayCaptureFuncs
+{
+    VertexArrayCaptureFuncs(bool isGLES1)
+    {
+        if (isGLES1)
+        {
+            // From GL_OES_vertex_array_object
+            bindVertexArray    = &gl::CaptureBindVertexArrayOES;
+            deleteVertexArrays = &gl::CaptureDeleteVertexArraysOES;
+            genVertexArrays    = &gl::CaptureGenVertexArraysOES;
+            isVertexArray      = &gl::CaptureIsVertexArrayOES;
+        }
+        else
+        {
+            bindVertexArray    = &gl::CaptureBindVertexArray;
+            deleteVertexArrays = &gl::CaptureDeleteVertexArrays;
+            genVertexArrays    = &gl::CaptureGenVertexArrays;
+            isVertexArray      = &gl::CaptureIsVertexArray;
+        }
+    }
+
+    decltype(&gl::CaptureBindVertexArray) bindVertexArray;
+    decltype(&gl::CaptureDeleteVertexArrays) deleteVertexArrays;
+    decltype(&gl::CaptureGenVertexArrays) genVertexArrays;
+    decltype(&gl::CaptureIsVertexArray) isVertexArray;
 };
 
 std::string GetDefaultOutDirectory()
@@ -3399,6 +3427,7 @@ void CaptureShareGroupMidExecutionSetup(
     // Set a unpack alignment of 1. Otherwise, computeRowPitch() will compute the wrong value,
     // leading to a crash in memcpy() when capturing the texture contents.
     gl::PixelUnpackState &currentUnpackState = replayState.getUnpackState();
+    GLint savedUnpackAlignment               = currentUnpackState.alignment;
     if (currentUnpackState.alignment != 1)
     {
         cap(CapturePixelStorei(replayState, true, GL_UNPACK_ALIGNMENT, 1));
@@ -3937,6 +3966,12 @@ void CaptureShareGroupMidExecutionSetup(
         CaptureFenceSyncResetCalls(context, replayState, resourceTracker, syncID, sync);
         resourceTracker->getStartingFenceSyncs().insert(syncID);
     }
+
+    if (savedUnpackAlignment != currentUnpackState.alignment)
+    {
+        cap(CapturePixelStorei(replayState, true, GL_UNPACK_ALIGNMENT, savedUnpackAlignment));
+        currentUnpackState.alignment = savedUnpackAlignment;
+    }
 }
 
 void CaptureMidExecutionSetup(const gl::Context *context,
@@ -3968,6 +4003,8 @@ void CaptureMidExecutionSetup(const gl::Context *context,
     }
 
     // Capture vertex array objects
+    VertexArrayCaptureFuncs vertexArrayFuncs(context->isGLES1());
+
     const gl::VertexArrayMap &vertexArrayMap = context->getVertexArraysForCapture();
     gl::VertexArrayID boundVertexArrayID     = {0};
     for (const auto &vertexArrayIter : vertexArrayMap)
@@ -3991,7 +4028,8 @@ void CaptureMidExecutionSetup(const gl::Context *context,
             // Gen the vertex array
             for (std::vector<CallCapture> *calls : vertexArrayGenCalls)
             {
-                Capture(calls, CaptureGenVertexArrays(replayState, true, 1, &vertexArrayID));
+                Capture(calls,
+                        vertexArrayFuncs.genVertexArrays(replayState, true, 1, &vertexArrayID));
                 MaybeCaptureUpdateResourceIDs(context, resourceTracker, calls);
             }
         }
@@ -4009,7 +4047,7 @@ void CaptureMidExecutionSetup(const gl::Context *context,
             for (std::vector<CallCapture> *calls : vertexArraySetupCalls)
             {
                 // Bind the vertexArray and populate it
-                Capture(calls, CaptureBindVertexArray(replayState, true, vertexArrayID));
+                Capture(calls, vertexArrayFuncs.bindVertexArray(replayState, true, vertexArrayID));
                 boundVertexArrayID = vertexArrayID;
 
                 CaptureVertexArrayState(calls, context, vertexArray, &replayState);
@@ -4021,12 +4059,12 @@ void CaptureMidExecutionSetup(const gl::Context *context,
     const gl::VertexArray *currentVertexArray = apiState.getVertexArray();
     if (currentVertexArray->id() != boundVertexArrayID)
     {
-        cap(CaptureBindVertexArray(replayState, true, currentVertexArray->id()));
+        cap(vertexArrayFuncs.bindVertexArray(replayState, true, currentVertexArray->id()));
     }
 
     // Track the calls necessary to bind the vertex array back to initial state
     Capture(&resetCalls[angle::EntryPoint::GLBindVertexArray],
-            CaptureBindVertexArray(replayState, true, currentVertexArray->id()));
+            vertexArrayFuncs.bindVertexArray(replayState, true, currentVertexArray->id()));
 
     // Capture indexed buffer bindings.
     const gl::BufferVector &uniformIndexedBuffers =
@@ -4070,6 +4108,7 @@ void CaptureMidExecutionSetup(const gl::Context *context,
     // Set a unpack alignment of 1. Otherwise, computeRowPitch() will compute the wrong value,
     // leading to a crash in memcpy() when capturing the texture contents.
     gl::PixelUnpackState &currentUnpackState = replayState.getUnpackState();
+    GLint savedUnpackAlignment               = currentUnpackState.alignment;
     if (currentUnpackState.alignment != 1)
     {
         cap(CapturePixelStorei(replayState, true, GL_UNPACK_ALIGNMENT, 1));
@@ -4116,6 +4155,8 @@ void CaptureMidExecutionSetup(const gl::Context *context,
     }
 
     // Set Renderbuffer binding.
+    FramebufferCaptureFuncs framebufferFuncs(context->isGLES1());
+
     const gl::RenderbufferManager &renderbuffers = apiState.getRenderbufferManagerForCapture();
     gl::RenderbufferID currentRenderbuffer       = {0};
     for (const auto &renderbufIter : renderbuffers)
@@ -4125,13 +4166,12 @@ void CaptureMidExecutionSetup(const gl::Context *context,
 
     if (currentRenderbuffer != apiState.getRenderbufferId())
     {
-        cap(CaptureBindRenderbuffer(replayState, true, GL_RENDERBUFFER,
-                                    apiState.getRenderbufferId()));
+        cap(framebufferFuncs.bindRenderbuffer(replayState, true, GL_RENDERBUFFER,
+                                              apiState.getRenderbufferId()));
     }
 
     // Capture Framebuffers.
     const gl::FramebufferManager &framebuffers = apiState.getFramebufferManagerForCapture();
-    FramebufferCaptureFuncs framebufferFuncs(context->isGLES1());
 
     gl::FramebufferID currentDrawFramebuffer = {0};
     gl::FramebufferID currentReadFramebuffer = {0};
@@ -4832,6 +4872,12 @@ void CaptureMidExecutionSetup(const gl::Context *context,
     if (validationEnabled)
     {
         CaptureValidateSerializedState(context, setupCalls);
+    }
+
+    if (savedUnpackAlignment != currentUnpackState.alignment)
+    {
+        cap(CapturePixelStorei(replayState, true, GL_UNPACK_ALIGNMENT, savedUnpackAlignment));
+        currentUnpackState.alignment = savedUnpackAlignment;
     }
 }
 
