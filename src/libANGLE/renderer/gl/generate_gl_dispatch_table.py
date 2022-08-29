@@ -249,7 +249,7 @@ def main():
     # auto_script parameters.
     if len(sys.argv) > 1:
         inputs = [
-            '../../../../third_party/OpenGL-Registry/src/xml/gl.xml',
+            '../../../../scripts/gl.xml',
             '../angle_format.py',
             'gl_bindings_data.json',
         ]
@@ -269,8 +269,7 @@ def main():
             return 1
         return 0
 
-    gl_xml_path = os.path.join('..', '..', '..', '..', 'third_party', 'OpenGL-Registry', 'src',
-                               'xml', 'gl.xml')
+    gl_xml_path = os.path.join('..', '..', '..', '..', 'scripts', 'gl.xml')
     dispatch_header_path = 'DispatchTableGL_autogen.h'
     dispatch_source_path = 'DispatchTableGL_autogen.cpp'
     null_functions_header_path = 'null_functions.h'

@@ -423,7 +423,7 @@ bool ValidateShaderBinary(const Context *context,
                           angle::EntryPoint entryPoint,
                           GLsizei count,
                           const ShaderProgramID *shadersPacked,
-                          GLenum binaryFormat,
+                          GLenum binaryformat,
                           const void *binary,
                           GLsizei length);
 bool ValidateShaderSource(const Context *context,

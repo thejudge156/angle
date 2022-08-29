@@ -132,7 +132,7 @@ bool ValidateGetProgramResourceiv(const Context *context,
                                   GLuint index,
                                   GLsizei propCount,
                                   const GLenum *props,
-                                  GLsizei count,
+                                  GLsizei bufSize,
                                   const GLsizei *length,
                                   const GLint *params);
 bool ValidateGetTexLevelParameterfv(const Context *context,

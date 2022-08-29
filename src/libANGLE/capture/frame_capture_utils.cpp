@@ -218,7 +218,8 @@ bool IsValidColorAttachmentBinding(GLenum binding, size_t colorAttachmentsCount)
 
 void SerializeFormat(JsonSerializer *json, GLenum glFormat)
 {
-    json->addCString("InternalFormat", gl::GLenumToString(gl::GLESEnum::InternalFormat, glFormat));
+    json->addCString("InternalFormat",
+                     gl::GLenumToString(gl::GLenumGroup::InternalFormat, glFormat));
 }
 
 void SerializeInternalFormat(JsonSerializer *json, const gl::InternalFormat *internalFormat)
@@ -272,15 +273,15 @@ Result SerializeFramebufferAttachment(const gl::Context *context,
                                       ScratchBuffer *scratchBuffer,
                                       gl::Framebuffer *framebuffer,
                                       const gl::FramebufferAttachment &framebufferAttachment,
-                                      gl::GLESEnum enumGroup)
+                                      gl::GLenumGroup enumGroup)
 {
     if (framebufferAttachment.type() == GL_TEXTURE ||
         framebufferAttachment.type() == GL_RENDERBUFFER)
     {
         json->addScalar("AttachedResourceID", framebufferAttachment.id());
     }
-    json->addCString(
-        "Type", gl::GLenumToString(gl::GLESEnum::ObjectIdentifier, framebufferAttachment.type()));
+    json->addCString("Type", gl::GLenumToString(gl::GLenumGroup::ObjectIdentifier,
+                                                framebufferAttachment.type()));
     // serialize target variable
     json->addString("Binding", gl::GLenumToString(enumGroup, framebufferAttachment.getBinding()));
     if (framebufferAttachment.type() == GL_TEXTURE)
@@ -359,7 +360,7 @@ Result SerializeFramebufferState(const gl::Context *context,
                                                 static_cast<int>(attachmentIndex));
                 ANGLE_TRY(SerializeFramebufferAttachment(context, json, scratchBuffer, framebuffer,
                                                          colorAttachment,
-                                                         gl::GLESEnum::ColorBuffer));
+                                                         gl::GLenumGroup::ColorBuffer));
             }
         }
         if (framebuffer->getDepthStencilAttachment())
@@ -367,7 +368,7 @@ Result SerializeFramebufferState(const gl::Context *context,
             GroupScope dsAttachmentgroup(json, "DepthStencilAttachment");
             ANGLE_TRY(SerializeFramebufferAttachment(context, json, scratchBuffer, framebuffer,
                                                      *framebuffer->getDepthStencilAttachment(),
-                                                     gl::GLESEnum::AllEnums));
+                                                     gl::GLenumGroup::DefaultGroup));
         }
         else
         {
@@ -376,14 +377,14 @@ Result SerializeFramebufferState(const gl::Context *context,
                 GroupScope depthAttachmentgroup(json, "DepthAttachment");
                 ANGLE_TRY(SerializeFramebufferAttachment(context, json, scratchBuffer, framebuffer,
                                                          *framebuffer->getDepthAttachment(),
-                                                         gl::GLESEnum::FramebufferAttachment));
+                                                         gl::GLenumGroup::FramebufferAttachment));
             }
             if (framebuffer->getStencilAttachment())
             {
                 GroupScope stencilAttachmengroup(json, "StencilAttachment");
                 ANGLE_TRY(SerializeFramebufferAttachment(context, json, scratchBuffer, framebuffer,
                                                          *framebuffer->getStencilAttachment(),
-                                                         gl::GLESEnum::AllEnums));
+                                                         gl::GLenumGroup::DefaultGroup));
             }
         }
     }
@@ -1112,7 +1113,7 @@ void SerializeProgram(JsonSerializer *json,
 
             json->addCString("Name", uniformName);
             json->addScalar("Size", size);
-            json->addCString("Type", gl::GLenumToString(gl::GLESEnum::AttributeType, type));
+            json->addCString("Type", gl::GLenumToString(gl::GLenumGroup::AttributeType, type));
 
             const gl::UniformLocation loc = program->getUniformLocation(uniformName);
 
