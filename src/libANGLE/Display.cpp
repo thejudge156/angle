@@ -1017,10 +1017,7 @@ Error Display::initialize()
 
         config.second.renderableType |= EGL_OPENGL_ES_BIT;
 
-        // If we aren't using desktop GL entry points, remove desktop GL support from all configs
-#if !defined(ANGLE_ENABLE_GL_DESKTOP_FRONTEND)
-        config.second.renderableType &= ~EGL_OPENGL_BIT;
-#endif
+        config.second.renderableType |= EGL_OPENGL_BIT;
     }
 
     if (!mState.featuresAllDisabled)

@@ -21,7 +21,8 @@ angle_enable_d3d11 = false
 angle_enable_null = false
 angle_enable_metal = false
 
-angle_enable_gl_desktop_frontend=true
+angle_enable_gl_desktop_frontend = true
+angle_enable_essl = true
 
 # SwiftShader is loaded as the system Vulkan driver on Android, not compiled by ANGLE
 angle_enable_swiftshader = false
