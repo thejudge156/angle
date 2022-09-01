@@ -325,7 +325,16 @@ vk::ResourceAccess GetDepthAccess(const gl::DepthStencilState &dsState,
     {
         return vk::ResourceAccess::Unused;
     }
-    return dsState.isDepthMaskedOut() ? vk::ResourceAccess::ReadOnly : vk::ResourceAccess::Write;
+
+    if (dsState.isDepthMaskedOut())
+    {
+        // If depthFunc is GL_ALWAYS or GL_NEVER, we do not need to load depth value.
+        return (dsState.depthFunc == GL_ALWAYS || dsState.depthFunc == GL_NEVER)
+                   ? vk::ResourceAccess::Unused
+                   : vk::ResourceAccess::ReadOnly;
+    }
+
+    return vk::ResourceAccess::Write;
 }
 
 vk::ResourceAccess GetStencilAccess(const gl::DepthStencilState &dsState,
@@ -4700,6 +4709,23 @@ angle::Result ContextVk::invalidateProgramExecutableHelper(const gl::Context *co
 
             // When framebuffer fetch is enabled, attachments can be read from even if output is
             // masked, so update their access.
+            onColorAccessChange();
+        }
+
+        // If permanentlySwitchToFramebufferFetchMode is enabled,
+        // mIsInFramebufferFetchMode will remain true throughout the entire time.
+        // If we switch from a program that doesn't use framebuffer fetch and doesn't
+        // read/write to the framebuffer color attachment, to a
+        // program that uses framebuffer fetch and needs to read from the framebuffer
+        // color attachment, we will miss the call
+        // onColorAccessChange() above and miss setting the dirty bit
+        // DIRTY_BIT_COLOR_ACCESS. This means we will not call
+        // handleDirtyGraphicsColorAccess that updates the access value of
+        // framebuffer color attachment from unused to readonly. This makes the
+        // color attachment to continue using LoadOpNone, and the second program
+        // will not be able to read the value in the color attachment.
+        if (getFeatures().permanentlySwitchToFramebufferFetchMode.enabled && hasFramebufferFetch)
+        {
             onColorAccessChange();
         }
 
