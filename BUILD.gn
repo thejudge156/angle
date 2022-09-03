@@ -1304,7 +1304,7 @@ template("angle_libGLESv2") {
       ":gl_prototypes",
     ]
 
-    if(angle_enable_gl_desktop_frontend) {
+    if (angle_enable_gl_desktop_frontend) {
       sources += libglesv2_gl_sources
       defines += [ "ANGLE_ENABLE_GL_DESKTOP_FRONTEND" ]
       if (angle_expose_wgl_entry_points) {
@@ -1315,14 +1315,15 @@ template("angle_libGLESv2") {
           "src/libGLESv2/proc_table_wgl_autogen.cpp",
         ]
         defines += [ "ANGLE_EXPOSE_WGL_ENTRY_POINTS" ]
-      }
-      if(angle_expose_glx_entry_points) {
-          sources += [
+      } else if (angle_expose_glx_entry_points) {
+        sources += [
           "src/libGLESv2/entry_points_glx.cpp",
           "src/libGLESv2/entry_points_glx.h",
           "src/libGLESv2/proc_table_glx.h",
           "src/libGLESv2/proc_table_glx_autogen.cpp",
         ]
+      } else {
+        #TODO(http://anglebug.com/7533): Add CGL entry points for mac support
       }
     }
 
@@ -1331,10 +1332,12 @@ template("angle_libGLESv2") {
     }
 
     if (is_win) {
-      sources += [
-        "src/libGLESv2/${invoker.output_name}_autogen.def",
-        "src/libGLESv2/libGLESv2.rc",
-      ]
+      if (angle_expose_wgl_entry_points) {
+        sources += [ "src/libGLESv2/opengl32_with_wgl_autogen.def" ]
+      } else {
+        sources += [ "src/libGLESv2/${invoker.output_name}_autogen.def" ]
+      }
+      sources += [ "src/libGLESv2/libGLESv2.rc" ]
       deps += [ ":angle_version" ]
     }
   }
@@ -1379,8 +1382,6 @@ angle_static_library("libGLESv2_static") {
     sources += libglesv2_gl_sources
     defines = [ "ANGLE_ENABLE_GL_DESKTOP_FRONTEND" ]
     if (angle_expose_wgl_entry_points) {
-      sources += libglesv2_gl_sources
-      defines += [ "ANGLE_ENABLE_GL_DESKTOP_FRONTEND" ]
       sources += [
         "src/libGLESv2/entry_points_wgl.cpp",
         "src/libGLESv2/entry_points_wgl.h",
@@ -1388,14 +1389,15 @@ angle_static_library("libGLESv2_static") {
         "src/libGLESv2/proc_table_wgl_autogen.cpp",
       ]
       defines += [ "ANGLE_EXPOSE_WGL_ENTRY_POINTS" ]
-    }
-    if(angle_expose_glx_entry_points) {
+    } else if (angle_expose_glx_entry_points) {
       sources += [
         "src/libGLESv2/entry_points_glx.cpp",
         "src/libGLESv2/entry_points_glx.h",
         "src/libGLESv2/proc_table_glx.h",
         "src/libGLESv2/proc_table_glx_autogen.cpp",
       ]
+    } else {
+      #TODO(http://anglebug.com/7533): Add CGL entry points for mac support
     }
   }
   if (angle_enable_cl) {
@@ -1480,6 +1482,10 @@ angle_shared_library("libEGL") {
   if (is_win) {
     sources += [ "src/libEGL/libEGL_autogen.def" ]
     deps += [ ":angle_version" ]
+  }
+
+  if (angle_enable_gl_desktop_frontend) {
+    defines += [ "ANGLE_ENABLE_GL_DESKTOP_FRONTEND" ]
   }
 
   public_deps = [ ":includes" ]
