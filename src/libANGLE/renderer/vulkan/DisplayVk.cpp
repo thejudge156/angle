@@ -211,6 +211,11 @@ gl::Version DisplayVk::getMaxConformantESVersion() const
     return mRenderer->getMaxConformantESVersion();
 }
 
+Optional<gl::Version> DisplayVk::getMaxSupportedDesktopVersion() const
+{
+    return gl::Version{4, 6};
+}
+
 egl::Error DisplayVk::validateImageClientBuffer(const gl::Context *context,
                                                 EGLenum target,
                                                 EGLClientBuffer clientBuffer,
@@ -305,12 +310,8 @@ void DisplayVk::generateExtensions(egl::DisplayExtensions *outExtensions) const
         getRenderer()->getFeatures().supportsAndroidHardwareBuffer.enabled;
     outExtensions->surfacelessContext = true;
     outExtensions->glColorspace       = true;
-
-    // TODO(b/205995945): drop the !AHB condition after sRGB texture upload for AHB gets fixed.
     outExtensions->imageGlColorspace =
-        outExtensions->glColorspace &&
-        getRenderer()->getFeatures().supportsImageFormatList.enabled &&
-        !getRenderer()->getFeatures().supportsAndroidHardwareBuffer.enabled;
+        outExtensions->glColorspace && getRenderer()->getFeatures().supportsImageFormatList.enabled;
 
 #if defined(ANGLE_PLATFORM_ANDROID)
     outExtensions->getNativeClientBufferANDROID = true;
