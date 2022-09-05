@@ -9,7 +9,7 @@
 #ifndef COMPILER_TRANSLATOR_TREEUTIL_BUILTIN_H_
 #define COMPILER_TRANSLATOR_TREEUTIL_BUILTIN_H_
 
-#if defined(ANDROID)
+#if defined(ANGLE_ENABLE_GL_DESKTOP_FRONTEND)
 #    include "BuiltIn_ESSL_autogen.h"
 #else
 #    include "BuiltIn_complete_autogen.h"
