@@ -177,7 +177,6 @@ class DisplayVk : public DisplayImpl, public vk::Context
 
     gl::Version getMaxSupportedESVersion() const override;
     gl::Version getMaxConformantESVersion() const override;
-    Optional<gl::Version> getMaxSupportedDesktopVersion() const override;
 
     egl::Error validateImageClientBuffer(const gl::Context *context,
                                          EGLenum target,

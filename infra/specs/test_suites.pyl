@@ -821,20 +821,6 @@
       },
     },
 
-    'swangle_deqp_gl46_tests': {
-      'angle_deqp_gl46_tests': {
-        'args': [
-          'angle_deqp_gl46_tests',
-          '--use-angle=swiftshader',
-          '--bot-mode',
-        ],
-        'linux_args': [
-          '--xvfb',
-        ],
-        'use_isolated_scripts_api': True,
-      },
-    },
-
     'swangle_deqp_gles2_slow_tests': {
       'angle_deqp_gles2_tests': {
         'args': [
@@ -1194,7 +1180,6 @@
 
     'swangle_gtests': [
       'swangle_deqp_egl_tests',
-      'swangle_deqp_gl46_tests',
       'swangle_deqp_gles2_tests',
       'swangle_deqp_gles31_rotate180_tests',
       'swangle_deqp_gles31_rotate270_tests',

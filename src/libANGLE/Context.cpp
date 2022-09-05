@@ -151,12 +151,8 @@ Version GetClientVersion(egl::Display *display,
     {
         if (clientType == EGL_OPENGL_API)
         {
-            Optional<gl::Version> maxSupportedDesktopVersion =
-                display->getImplementation()->getMaxSupportedDesktopVersion();
-            if (maxSupportedDesktopVersion.valid())
-                return std::max(maxSupportedDesktopVersion.value(), requestedVersion);
-            else
-                return requestedVersion;
+            return std::max(display->getImplementation()->getMaxSupportedDesktopVersion(),
+                            requestedVersion);
         }
         else if (requestedVersion.major == 1)
         {

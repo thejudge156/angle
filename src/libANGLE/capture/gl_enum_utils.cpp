@@ -15,11 +15,9 @@
 
 namespace gl
 {
-namespace
-{
+const char kUnknownGLenumString[] = "EnumUnknown";
 
-template <typename EnumType>
-void OutputGLenumStringImpl(std::ostream &out, EnumType enumGroup, unsigned int value)
+void OutputGLenumString(std::ostream &out, GLESEnum enumGroup, unsigned int value)
 {
     const char *enumStr = GLenumToString(enumGroup, value);
     if (enumStr != kUnknownGLenumString)
@@ -28,7 +26,7 @@ void OutputGLenumStringImpl(std::ostream &out, EnumType enumGroup, unsigned int 
         return;
     }
 
-    if (enumGroup == EnumType::Boolean)
+    if (enumGroup == GLESEnum::Boolean)
     {
         // If an unknown enum was submitted as GLboolean, just write out the value.
         if (enumStr == kUnknownGLenumString)
@@ -43,10 +41,10 @@ void OutputGLenumStringImpl(std::ostream &out, EnumType enumGroup, unsigned int 
         return;
     }
 
-    if (enumGroup != EnumType::AllEnums)
+    if (enumGroup != GLESEnum::AllEnums)
     {
         // Retry with the "Default" group
-        enumStr = GLenumToString(EnumType::AllEnums, value);
+        enumStr = GLenumToString(GLESEnum::AllEnums, value);
         if (enumStr != kUnknownGLenumString)
         {
             out << enumStr;
@@ -57,8 +55,17 @@ void OutputGLenumStringImpl(std::ostream &out, EnumType enumGroup, unsigned int 
     out << std::hex << "0x" << std::setfill('0') << std::setw(4) << value << std::dec;
 }
 
-template <typename EnumType>
-std::string GLbitfieldToStringImpl(EnumType enumGroup, unsigned int value)
+void OutputGLbitfieldString(std::ostream &out, GLESEnum enumGroup, unsigned int value)
+{
+    out << GLbitfieldToString(enumGroup, value);
+}
+
+const char *GLbooleanToString(unsigned int value)
+{
+    return GLenumToString(GLESEnum::Boolean, value);
+}
+
+std::string GLbitfieldToString(GLESEnum enumGroup, unsigned int value)
 {
     std::stringstream st;
 
@@ -82,39 +89,6 @@ std::string GLbitfieldToStringImpl(EnumType enumGroup, unsigned int value)
     }
 
     return st.str();
-}
-}  // namespace
-
-const char kUnknownGLenumString[] = "EnumUnknown";
-
-void OutputGLenumString(std::ostream &out, GLESEnum enumGroup, unsigned int value)
-{
-    return OutputGLenumStringImpl(out, enumGroup, value);
-}
-
-void OutputGLenumString(std::ostream &out, BigGLEnum enumGroup, unsigned int value)
-{
-    return OutputGLenumStringImpl(out, enumGroup, value);
-}
-
-void OutputGLbitfieldString(std::ostream &out, GLESEnum enumGroup, unsigned int value)
-{
-    out << GLbitfieldToString(enumGroup, value);
-}
-
-const char *GLbooleanToString(unsigned int value)
-{
-    return GLenumToString(GLESEnum::Boolean, value);
-}
-
-std::string GLbitfieldToString(GLESEnum enumGroup, unsigned int value)
-{
-    return GLbitfieldToStringImpl(enumGroup, value);
-}
-
-std::string GLbitfieldToString(BigGLEnum enumGroup, unsigned int value)
-{
-    return GLbitfieldToStringImpl(enumGroup, value);
 }
 
 const char *GLinternalFormatToString(unsigned int format)
