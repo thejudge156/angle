@@ -13,7 +13,7 @@ target_cpu = "arm64"
 android32_ndk_api_level = 26
 android64_ndk_api_level = 26
 
-# Disable all backends except GLES
+# Disable all backends except Vulkan
 angle_enable_gl = false
 angle_enable_vulkan = true
 angle_enable_d3d9 = false
