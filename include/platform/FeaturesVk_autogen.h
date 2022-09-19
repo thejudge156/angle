@@ -291,11 +291,6 @@ struct FeaturesVk : FeatureSetBase
         "Persistently map buffer memory to reduce map/unmap IOCTL overhead.", &members,
         "http://anglebug.com/2162"};
 
-    FeatureInfo extraBufferLoggingAndChecking = {
-        "extraBufferLoggingAndChecking", FeatureCategory::VulkanFeatures,
-        "Enable extra buffer logging and checking to catch rare crashes", &members,
-        "https://issuetracker.google.com/236098131"};
-
     FeatureInfo enablePreRotateSurfaces = {"enablePreRotateSurfaces",
                                            FeatureCategory::VulkanFeatures,
                                            "Enable Android pre-rotation for landscape applications",
@@ -746,6 +741,13 @@ struct FeaturesVk : FeatureSetBase
                                             FeatureCategory::VulkanFeatures,
                                             "VkDevice supports VK_EXT_color_write_enable extension",
                                             &members, "https://anglebug.com/7161"};
+
+    FeatureInfo supportsPresentation = {
+        "supportsPresentation",
+        FeatureCategory::VulkanFeatures,
+        "VkDisplay supports presentation through a present family queue",
+        &members,
+    };
 };
 
 inline FeaturesVk::FeaturesVk()  = default;

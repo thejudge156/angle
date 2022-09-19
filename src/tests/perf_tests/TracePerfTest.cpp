@@ -64,8 +64,7 @@ struct TracePerfParams final : public RenderTestParams
         return strstr.str();
     }
 
-    TraceInfo traceInfo       = {};
-    std::string tracePerfName = "";
+    TraceInfo traceInfo = {};
 };
 
 std::ostream &operator<<(std::ostream &os, const TracePerfParams &params)
@@ -722,7 +721,7 @@ bool FindRootTraceTestDataPath(char *testDataDirOut, size_t maxDataDirLen)
 }
 
 TracePerfTest::TracePerfTest(std::unique_ptr<const TracePerfParams> params)
-    : ANGLERenderTest("TracePerf_" + params->tracePerfName, *params.get(), "ms"),
+    : ANGLERenderTest("TracePerf", *params.get(), "ms"),
       mParams(std::move(params)),
       mStartFrame(0),
       mEndFrame(0)
@@ -1287,6 +1286,11 @@ TracePerfTest::TracePerfTest(std::unique_ptr<const TracePerfParams> params)
     if (traceNameIs("antutu_refinery"))
     {
         addExtensionPrerequisite("GL_ANDROID_extension_pack_es31a");
+    }
+
+    if (traceNameIs("botworld_adventure"))
+    {
+        addExtensionPrerequisite("GL_KHR_texture_compression_astc_ldr");
     }
 
     // glDebugMessageControlKHR and glDebugMessageCallbackKHR crash on ARM GLES1.
@@ -2163,15 +2167,13 @@ void RegisterTraceTests()
             overrideParams.eglParameters.enable(Feature::ForceInitShaderVariables);
         }
 
-        std::string paramName = testing::PrintToString(params);
-        std::stringstream testNameStr;
-        testNameStr << "Run/" << paramName;
-        std::string testName         = testNameStr.str();
-        overrideParams.tracePerfName = testName;
-
         auto factory = [overrideParams]() {
             return new TracePerfTest(std::make_unique<TracePerfParams>(overrideParams));
         };
+        std::string paramName = testing::PrintToString(params);
+        std::stringstream testNameStr;
+        testNameStr << "Run/" << paramName;
+        std::string testName = testNameStr.str();
         testing::RegisterTest("TracePerfTest", testName.c_str(), nullptr, paramName.c_str(),
                               __FILE__, __LINE__, factory);
     }

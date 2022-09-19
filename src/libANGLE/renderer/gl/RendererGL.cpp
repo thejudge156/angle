@@ -63,6 +63,11 @@ const char *kIgnoredErrors[] = {
     "FreeAllocationOnTimestamp - Reference to buffer created from "
     "different context without a share list. Application failed to pass "
     "share_context to eglCreateContext. Results are undefined.",
+    // http://crbug.com/1348684
+    "UpdateTimestamp - Reference to buffer created from different context without a share list. "
+    "Application failed to pass share_context to eglCreateContext. Results are undefined.",
+    "Attempt to use resource over contexts without enabling context sharing. App must pass a "
+    "share_context to eglCreateContext() to share resources.",
 };
 #endif  // defined(ANGLE_PLATFORM_ANDROID)
 
@@ -324,6 +329,18 @@ const gl::Limitations &RendererGL::getNativeLimitations() const
 {
     ensureCapsInitialized();
     return mNativeLimitations;
+}
+
+ShPixelLocalStorageType RendererGL::getNativePixelLocalStorageType() const
+{
+    if (!getNativeExtensions().shaderPixelLocalStorageANGLE)
+    {
+        return ShPixelLocalStorageType::NotSupported;
+    }
+    // OpenGL ES only allows read/write access to "r32*" images.
+    return getFunctions()->standard == StandardGL::STANDARD_GL_ES
+               ? ShPixelLocalStorageType::ImageStoreR32PackedFormats
+               : ShPixelLocalStorageType::ImageStoreNativeFormats;
 }
 
 MultiviewImplementationTypeGL RendererGL::getMultiviewImplementationType() const

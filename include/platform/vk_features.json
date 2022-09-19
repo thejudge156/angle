@@ -365,14 +365,6 @@
             "issue": "http://anglebug.com/2162"
         },
         {
-            "name": "extra_buffer_logging_and_checking",
-            "category": "Features",
-            "description": [
-                "Enable extra buffer logging and checking to catch rare crashes"
-            ],
-            "issue": "https://issuetracker.google.com/236098131"
-        },
-        {
             "name": "enable_pre_rotate_surfaces",
             "category": "Features",
             "description": [
@@ -1015,6 +1007,13 @@
                 "VkDevice supports VK_EXT_color_write_enable extension"
             ],
             "issue": "https://anglebug.com/7161"
+        },
+        {
+            "name": "supports_presentation",
+            "category": "Features",
+            "description": [
+                "VkDisplay supports presentation through a present family queue"
+            ]
         }
     ]
 }

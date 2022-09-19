@@ -666,11 +666,15 @@ const gl::Extensions &DisplayMtl::getNativeExtensions() const
     ensureCapsInitialized();
     return mNativeExtensions;
 }
-
 const gl::Limitations &DisplayMtl::getNativeLimitations() const
 {
     ensureCapsInitialized();
     return mNativeLimitations;
+}
+ShPixelLocalStorageType DisplayMtl::getNativePixelLocalStorageType() const
+{
+    // PLS isn't supported on Metal yet.
+    return ShPixelLocalStorageType::NotSupported;
 }
 
 void DisplayMtl::ensureCapsInitialized() const
@@ -1141,9 +1145,12 @@ void DisplayMtl::initializeFeatures()
 
     ANGLE_FEATURE_CONDITION((&mFeatures), forceNonCSBaseMipmapGeneration, isIntel());
 
-    bool defaultDirectToMetal = true;
+    ANGLE_FEATURE_CONDITION((&mFeatures), preemptivelyStartProvokingVertexCommandBuffer, isAMD());
 
+    bool defaultDirectToMetal = true;
     ANGLE_FEATURE_CONDITION((&mFeatures), directMetalGeneration, defaultDirectToMetal);
+
+    ANGLE_FEATURE_CONDITION((&mFeatures), unpackLastRowSeparatelyForPaddingInclusion, isAMD());
 
     ApplyFeatureOverrides(&mFeatures, getState());
 #ifdef ANGLE_ENABLE_ASSERTS

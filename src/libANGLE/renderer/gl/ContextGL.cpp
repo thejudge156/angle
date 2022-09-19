@@ -74,9 +74,12 @@ FramebufferImpl *ContextGL::createFramebuffer(const gl::FramebufferState &data)
     const FunctionsGL *funcs = getFunctions();
 
     GLuint fbo = 0;
-    funcs->genFramebuffers(1, &fbo);
+    if (!data.isDefault())
+    {
+        funcs->genFramebuffers(1, &fbo);
+    }
 
-    return new FramebufferGL(data, fbo, false, false);
+    return new FramebufferGL(data, fbo, false);
 }
 
 TextureImpl *ContextGL::createTexture(const gl::TextureState &state)
@@ -930,6 +933,11 @@ const gl::Extensions &ContextGL::getNativeExtensions() const
 const gl::Limitations &ContextGL::getNativeLimitations() const
 {
     return mRenderer->getNativeLimitations();
+}
+
+ShPixelLocalStorageType ContextGL::getNativePixelLocalStorageType() const
+{
+    return mRenderer->getNativePixelLocalStorageType();
 }
 
 StateManagerGL *ContextGL::getStateManager()

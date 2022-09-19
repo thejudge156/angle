@@ -5360,6 +5360,11 @@ const gl::Limitations &ContextVk::getNativeLimitations() const
     return mRenderer->getNativeLimitations();
 }
 
+ShPixelLocalStorageType ContextVk::getNativePixelLocalStorageType() const
+{
+    return mRenderer->getNativePixelLocalStorageType();
+}
+
 CompilerImpl *ContextVk::createCompiler()
 {
     return new CompilerVk();
@@ -5377,7 +5382,7 @@ ProgramImpl *ContextVk::createProgram(const gl::ProgramState &state)
 
 FramebufferImpl *ContextVk::createFramebuffer(const gl::FramebufferState &state)
 {
-    return FramebufferVk::CreateUserFBO(mRenderer, state);
+    return new FramebufferVk(mRenderer, state);
 }
 
 TextureImpl *ContextVk::createTexture(const gl::TextureState &state)
@@ -5755,10 +5760,7 @@ angle::Result ContextVk::onPauseTransformFeedback()
             return flushCommandsAndEndRenderPass(RenderPassClosureReason::XfbPause);
         }
     }
-    else if (getFeatures().emulateTransformFeedback.enabled)
-    {
-        invalidateCurrentTransformFeedbackBuffers();
-    }
+    onTransformFeedbackStateChanged();
     return angle::Result::Continue;
 }
 

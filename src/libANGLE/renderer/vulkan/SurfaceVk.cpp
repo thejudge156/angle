@@ -205,77 +205,6 @@ VkColorSpaceKHR MapEglColorSpaceToVkColorSpace(RendererVk *renderer, EGLenum EGL
     }
 }
 
-angle::Result DoesSurfaceSupportFormatAndColorspace(DisplayVk *displayVk,
-                                                    VkPhysicalDevice physicalDevice,
-                                                    VkSurfaceKHR surface,
-                                                    VkFormat format,
-                                                    VkColorSpaceKHR colorSpace,
-                                                    bool *surfaceFormatSupported)
-{
-    VkPhysicalDeviceSurfaceInfo2KHR surfaceInfo2 = {};
-    surfaceInfo2.sType   = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SURFACE_INFO_2_KHR;
-    surfaceInfo2.surface = surface;
-
-    uint32_t surfaceFormatCount = 0;
-    ANGLE_VK_TRY(displayVk, vkGetPhysicalDeviceSurfaceFormats2KHR(physicalDevice, &surfaceInfo2,
-                                                                  &surfaceFormatCount, nullptr));
-
-    std::vector<VkSurfaceFormat2KHR> surfaceFormats2(surfaceFormatCount);
-    for (VkSurfaceFormat2KHR &surfaceFormat2 : surfaceFormats2)
-    {
-        surfaceFormat2.sType = VK_STRUCTURE_TYPE_SURFACE_FORMAT_2_KHR;
-    }
-    ANGLE_VK_TRY(displayVk,
-                 vkGetPhysicalDeviceSurfaceFormats2KHR(
-                     physicalDevice, &surfaceInfo2, &surfaceFormatCount, surfaceFormats2.data()));
-
-    for (VkSurfaceFormat2KHR &surfaceFormat2 : surfaceFormats2)
-    {
-        if (surfaceFormat2.surfaceFormat.format == format &&
-            surfaceFormat2.surfaceFormat.colorSpace == colorSpace)
-        {
-            *surfaceFormatSupported = true;
-            return angle::Result::Continue;
-        }
-    }
-
-    return angle::Result::Continue;
-}
-
-angle::Result DoesSurfaceSupportFormat(DisplayVk *displayVk,
-                                       VkPhysicalDevice physicalDevice,
-                                       VkSurfaceKHR surface,
-                                       VkFormat format,
-                                       bool *surfaceFormatSupported)
-{
-    uint32_t surfaceFormatCount = 0;
-    ANGLE_VK_TRY(displayVk, vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface,
-                                                                 &surfaceFormatCount, nullptr));
-
-    std::vector<VkSurfaceFormatKHR> surfaceFormats(surfaceFormatCount);
-    ANGLE_VK_TRY(displayVk,
-                 vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &surfaceFormatCount,
-                                                      surfaceFormats.data()));
-
-    if (surfaceFormatCount == 1u && surfaceFormats[0].format == VK_FORMAT_UNDEFINED)
-    {
-        // This is fine.
-        *surfaceFormatSupported = true;
-    }
-    else
-    {
-        for (const VkSurfaceFormatKHR &surfaceFormat : surfaceFormats)
-        {
-            if (surfaceFormat.format == format)
-            {
-                *surfaceFormatSupported = true;
-                return angle::Result::Continue;
-            }
-        }
-    }
-    return angle::Result::Continue;
-}
-
 angle::Result LockSurfaceImpl(DisplayVk *displayVk,
                               vk::ImageHelper *image,
                               vk::BufferHelper &lockBufferHelper,
@@ -576,15 +505,6 @@ void OffscreenSurfaceVk::destroy(const egl::Display *display)
     SurfaceVk::destroy(display);
 }
 
-FramebufferImpl *OffscreenSurfaceVk::createDefaultFramebuffer(const gl::Context *context,
-                                                              const gl::FramebufferState &state)
-{
-    RendererVk *renderer = vk::GetImpl(context)->getRenderer();
-
-    // Use a user FBO for an offscreen RT.
-    return FramebufferVk::CreateUserFBO(renderer, state);
-}
-
 egl::Error OffscreenSurfaceVk::swap(const gl::Context *context)
 {
     return egl::NoError();
@@ -717,6 +637,18 @@ egl::Error OffscreenSurfaceVk::unlockSurface(const egl::Display *display, bool p
 EGLint OffscreenSurfaceVk::origin() const
 {
     return EGL_UPPER_LEFT_KHR;
+}
+
+egl::Error OffscreenSurfaceVk::attachToFramebuffer(const gl::Context *context,
+                                                   gl::Framebuffer *framebuffer)
+{
+    return egl::NoError();
+}
+
+egl::Error OffscreenSurfaceVk::detachFromFramebuffer(const gl::Context *context,
+                                                     gl::Framebuffer *framebuffer)
+{
+    return egl::NoError();
 }
 
 namespace impl
@@ -1062,6 +994,7 @@ angle::Result WindowSurfaceVk::initializeImpl(DisplayVk *displayVk)
     }
     setSwapInterval(preferredSwapInterval);
 
+    // Ensure that the format and colorspace pair is supported.
     const vk::Format &format = renderer->getFormat(mState.config->renderTargetFormat);
     VkFormat nativeFormat    = format.getActualRenderableImageVkFormat();
     // For devices that don't support creating swapchain images with RGB8, emulate with RGBA8.
@@ -1070,35 +1003,9 @@ angle::Result WindowSurfaceVk::initializeImpl(DisplayVk *displayVk)
     {
         nativeFormat = VK_FORMAT_R8G8B8A8_UNORM;
     }
-
-    bool surfaceFormatSupported = false;
-    VkColorSpaceKHR colorSpace  = MapEglColorSpaceToVkColorSpace(
-         renderer, static_cast<EGLenum>(mState.attributes.get(EGL_GL_COLORSPACE, EGL_NONE)));
-
-    if (renderer->getFeatures().supportsSurfaceCapabilities2Extension.enabled)
-    {
-
-        // If a non-linear colorspace was requested but the non-linear colorspace is
-        // not supported in combination with the vulkan surface format, treat it as a non-fatal
-        // error
-        ANGLE_TRY(DoesSurfaceSupportFormatAndColorspace(displayVk, physicalDevice, mSurface,
-                                                        nativeFormat, colorSpace,
-                                                        &surfaceFormatSupported));
-    }
-    else if (colorSpace != VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
-    {
-        // VK_KHR_get_surface_capabilities2 is required to query support for colorspaces
-        // from VK_EXT_swapchain_colorspace
-    }
-    else
-    {
-        // If a non-linear colorspace was requested but the non-linear format is
-        // not supported as a vulkan surface format, treat it as a non-fatal error
-        ANGLE_TRY(DoesSurfaceSupportFormat(displayVk, physicalDevice, mSurface, nativeFormat,
-                                           &surfaceFormatSupported));
-    }
-
-    if (!surfaceFormatSupported)
+    VkColorSpaceKHR colorSpace = MapEglColorSpaceToVkColorSpace(
+        renderer, static_cast<EGLenum>(mState.attributes.get(EGL_GL_COLORSPACE, EGL_NONE)));
+    if (!displayVk->isSurfaceFormatColorspacePairSupported(mSurface, nativeFormat, colorSpace))
     {
         return angle::Result::Incomplete;
     }
@@ -1659,13 +1566,6 @@ void WindowSurfaceVk::destroySwapChainImages(DisplayVk *displayVk)
     mSwapchainImages.clear();
 }
 
-FramebufferImpl *WindowSurfaceVk::createDefaultFramebuffer(const gl::Context *context,
-                                                           const gl::FramebufferState &state)
-{
-    RendererVk *renderer = vk::GetImpl(context)->getRenderer();
-    return FramebufferVk::CreateDefaultFBO(renderer, state, this);
-}
-
 egl::Error WindowSurfaceVk::prepareSwap(const gl::Context *context)
 {
     DisplayVk *displayVk = vk::GetImpl(context->getDisplay());
@@ -1817,9 +1717,12 @@ angle::Result WindowSurfaceVk::present(ContextVk *contextVk,
         contextVk->getPerfCounters().swapchainResolveOutsideSubpass++;
     }
 
-    // This does nothing if it's already in the requested layout
-    image.image.recordReadBarrier(contextVk, VK_IMAGE_ASPECT_COLOR_BIT, vk::ImageLayout::Present,
-                                  commandBuffer);
+    if (renderer->getFeatures().supportsPresentation.enabled)
+    {
+        // This does nothing if it's already in the requested layout
+        image.image.recordReadBarrier(contextVk, VK_IMAGE_ASPECT_COLOR_BIT,
+                                      vk::ImageLayout::Present, commandBuffer);
+    }
 
     // Knowing that the kSwapHistorySize'th submission ago has finished, we can know that the
     // (kSwapHistorySize+1)'th present ago of this image is definitely finished and so its wait
@@ -2637,6 +2540,24 @@ egl::Error WindowSurfaceVk::unlockSurface(const egl::Display *display, bool pres
 EGLint WindowSurfaceVk::origin() const
 {
     return EGL_UPPER_LEFT_KHR;
+}
+
+egl::Error WindowSurfaceVk::attachToFramebuffer(const gl::Context *context,
+                                                gl::Framebuffer *framebuffer)
+{
+    FramebufferVk *framebufferVk = GetImplAs<FramebufferVk>(framebuffer);
+    ASSERT(!framebufferVk->getBackbuffer());
+    framebufferVk->setBackbuffer(this);
+    return egl::NoError();
+}
+
+egl::Error WindowSurfaceVk::detachFromFramebuffer(const gl::Context *context,
+                                                  gl::Framebuffer *framebuffer)
+{
+    FramebufferVk *framebufferVk = GetImplAs<FramebufferVk>(framebuffer);
+    ASSERT(framebufferVk->getBackbuffer() == this);
+    framebufferVk->setBackbuffer(nullptr);
+    return egl::NoError();
 }
 
 }  // namespace rx
