@@ -26,7 +26,6 @@
 #include "libANGLE/Compiler.h"
 #include "libANGLE/Display.h"
 #include "libANGLE/Fence.h"
-#include "libANGLE/Framebuffer.h"
 #include "libANGLE/FramebufferAttachment.h"
 #include "libANGLE/MemoryObject.h"
 #include "libANGLE/Program.h"
@@ -556,6 +555,8 @@ void Context::initializeDefaultResources()
 
     mState.initialize(this);
 
+    mDefaultFramebuffer = std::make_unique<Framebuffer>(this, mImplementation.get());
+
     mFenceNVHandleAllocator.setBaseHandle(0);
 
     // [OpenGL ES 2.0.24] section 3.7 page 83:
@@ -688,6 +689,7 @@ void Context::initializeDefaultResources()
     mDrawDirtyObjects.set(State::DIRTY_OBJECT_VERTEX_ARRAY);
     mDrawDirtyObjects.set(State::DIRTY_OBJECT_TEXTURES);
     mDrawDirtyObjects.set(State::DIRTY_OBJECT_PROGRAM);
+    mDrawDirtyObjects.set(State::DIRTY_OBJECT_PROGRAM_PIPELINE_OBJECT);
     mDrawDirtyObjects.set(State::DIRTY_OBJECT_SAMPLERS);
     mDrawDirtyObjects.set(State::DIRTY_OBJECT_IMAGES);
 
@@ -739,6 +741,7 @@ void Context::initializeDefaultResources()
     mComputeDirtyObjects.set(State::DIRTY_OBJECT_ACTIVE_TEXTURES);
     mComputeDirtyObjects.set(State::DIRTY_OBJECT_TEXTURES);
     mComputeDirtyObjects.set(State::DIRTY_OBJECT_PROGRAM);
+    mComputeDirtyObjects.set(State::DIRTY_OBJECT_PROGRAM_PIPELINE_OBJECT);
     mComputeDirtyObjects.set(State::DIRTY_OBJECT_IMAGES);
     mComputeDirtyObjects.set(State::DIRTY_OBJECT_SAMPLERS);
 
@@ -775,6 +778,9 @@ egl::Error Context::onDestroy(const egl::Display *display)
     }
 
     ANGLE_TRY(unMakeCurrent(display));
+
+    mDefaultFramebuffer->onDestroy(this);
+    mDefaultFramebuffer.reset();
 
     for (auto fence : mFenceNVMap)
     {
@@ -1413,7 +1419,6 @@ void Context::useProgramStages(ProgramPipelineID pipeline,
 
     ASSERT(programPipeline);
     ANGLE_CONTEXT_TRY(programPipeline->useProgramStages(this, stages, shaderProgram));
-    mState.mDirtyBits.set(State::DirtyBitType::DIRTY_BIT_PROGRAM_EXECUTABLE);
 }
 
 void Context::bindTransformFeedback(GLenum target, TransformFeedbackID transformFeedbackHandle)
@@ -1430,10 +1435,6 @@ void Context::bindProgramPipeline(ProgramPipelineID pipelineHandle)
     ProgramPipeline *pipeline = mState.mProgramPipelineManager->checkProgramPipelineAllocation(
         mImplementation.get(), pipelineHandle);
     ANGLE_CONTEXT_TRY(mState.setProgramPipelineBinding(this, pipeline));
-    if (pipeline && pipeline->isLinked())
-    {
-        ANGLE_CONTEXT_TRY(mState.onProgramPipelineExecutableChange(this));
-    }
     mStateCache.onProgramExecutableChange(this);
     mProgramPipelineObserverBinding.bind(pipeline);
 }
@@ -4408,11 +4409,12 @@ ANGLE_INLINE angle::Result Context::prepareForDispatch()
     ProgramPipeline *pipeline = mState.getProgramPipeline();
     if (!program && pipeline)
     {
-        bool goodResult = pipeline->link(this) == angle::Result::Continue;
         // Linking the PPO can't fail due to a validation error within the compute program,
         // since it successfully linked already in order to become part of the PPO in the first
         // place.
-        ANGLE_CHECK(this, goodResult, "Program pipeline link failed", GL_INVALID_OPERATION);
+        pipeline->resolveLink(this);
+        ANGLE_CHECK(this, pipeline->isLinked(), "Program pipeline link failed",
+                    GL_INVALID_OPERATION);
     }
 
     ANGLE_TRY(syncDirtyObjects(mComputeDirtyObjects, Command::Dispatch));
@@ -9071,6 +9073,34 @@ void Context::importSemaphoreZirconHandle(SemaphoreID semaphore,
     ANGLE_CONTEXT_TRY(semaphoreObject->importZirconHandle(this, handleType, handle));
 }
 
+void Context::framebufferMemorylessPixelLocalStorage(GLint plane, GLenum internalformat)
+{
+    UNIMPLEMENTED();
+}
+
+void Context::framebufferTexturePixelLocalStorage(GLint plane,
+                                                  TextureID backingtexture,
+                                                  GLint level,
+                                                  GLint layer)
+{
+    UNIMPLEMENTED();
+}
+
+void Context::beginPixelLocalStorage(GLsizei planes, const GLenum loadops[], const void *cleardata)
+{
+    UNIMPLEMENTED();
+}
+
+void Context::endPixelLocalStorage()
+{
+    UNIMPLEMENTED();
+}
+
+void Context::pixelLocalStorageBarrier()
+{
+    UNIMPLEMENTED();
+}
+
 void Context::eGLImageTargetTexStorage(GLenum target, GLeglImageOES image, const GLint *attrib_list)
 {
     Texture *texture        = getTextureByType(FromGLenum<TextureType>(target));
@@ -9434,21 +9464,15 @@ egl::Error Context::setDefaultFramebuffer(egl::Surface *drawSurface, egl::Surfac
     ASSERT(mCurrentDrawSurface == nullptr);
     ASSERT(mCurrentReadSurface == nullptr);
 
-    UniqueFramebufferPointer newDefaultFramebuffer;
-
     mCurrentDrawSurface = drawSurface;
     mCurrentReadSurface = readSurface;
 
     if (drawSurface != nullptr)
     {
         ANGLE_TRY(drawSurface->makeCurrent(this));
-        newDefaultFramebuffer = {new Framebuffer(this, drawSurface, readSurface), this};
     }
-    else
-    {
-        newDefaultFramebuffer = {new Framebuffer(this, mImplementation.get(), readSurface), this};
-    }
-    ASSERT(newDefaultFramebuffer);
+
+    ANGLE_TRY(mDefaultFramebuffer->setSurfaces(this, drawSurface, readSurface));
 
     if (readSurface && (drawSurface != readSurface))
     {
@@ -9457,15 +9481,14 @@ egl::Error Context::setDefaultFramebuffer(egl::Surface *drawSurface, egl::Surfac
 
     // Update default framebuffer, the binding of the previous default
     // framebuffer (or lack of) will have a nullptr.
-    Framebuffer *framebuffer = newDefaultFramebuffer.get();
-    mState.mFramebufferManager->setDefaultFramebuffer(newDefaultFramebuffer.release());
+    mState.mFramebufferManager->setDefaultFramebuffer(mDefaultFramebuffer.get());
     if (mState.getDrawFramebuffer() == nullptr)
     {
-        bindDrawFramebuffer(framebuffer->id());
+        bindDrawFramebuffer(mDefaultFramebuffer->id());
     }
     if (mState.getReadFramebuffer() == nullptr)
     {
-        bindReadFramebuffer(framebuffer->id());
+        bindReadFramebuffer(mDefaultFramebuffer->id());
     }
 
     return egl::NoError();
@@ -9473,29 +9496,27 @@ egl::Error Context::setDefaultFramebuffer(egl::Surface *drawSurface, egl::Surfac
 
 egl::Error Context::unsetDefaultFramebuffer()
 {
-    gl::Framebuffer *defaultFramebuffer =
+    Framebuffer *defaultFramebuffer =
         mState.mFramebufferManager->getFramebuffer(Framebuffer::kDefaultDrawFramebufferHandle);
-
-    // Remove the default framebuffer
-    if (mState.getReadFramebuffer() == defaultFramebuffer)
-    {
-        mState.setReadFramebufferBinding(nullptr);
-        mReadFramebufferObserverBinding.bind(nullptr);
-    }
-
-    if (mState.getDrawFramebuffer() == defaultFramebuffer)
-    {
-        mState.setDrawFramebufferBinding(nullptr);
-        mDrawFramebufferObserverBinding.bind(nullptr);
-    }
 
     if (defaultFramebuffer)
     {
-        defaultFramebuffer->onDestroy(this);
-        delete defaultFramebuffer;
-    }
+        // Remove the default framebuffer
+        if (defaultFramebuffer == mState.getReadFramebuffer())
+        {
+            mState.setReadFramebufferBinding(nullptr);
+            mReadFramebufferObserverBinding.bind(nullptr);
+        }
 
-    mState.mFramebufferManager->setDefaultFramebuffer(nullptr);
+        if (defaultFramebuffer == mState.getDrawFramebuffer())
+        {
+            mState.setDrawFramebufferBinding(nullptr);
+            mDrawFramebufferObserverBinding.bind(nullptr);
+        }
+
+        ANGLE_TRY(defaultFramebuffer->unsetSurfaces(this));
+        mState.mFramebufferManager->setDefaultFramebuffer(nullptr);
+    }
 
     // Always unset the current surface, even if setIsCurrent fails.
     egl::Surface *drawSurface = mCurrentDrawSurface;

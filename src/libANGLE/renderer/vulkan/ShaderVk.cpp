@@ -11,6 +11,7 @@
 
 #include "common/debug.h"
 #include "libANGLE/Context.h"
+#include "libANGLE/Display.h"
 #include "libANGLE/renderer/vulkan/ContextVk.h"
 #include "platform/FeaturesVk_autogen.h"
 
@@ -47,7 +48,7 @@ std::shared_ptr<WaitableCompileEvent> ShaderVk::compile(const gl::Context *conte
     // but the GL_EXT_robustness does support.
     // Enable the flag clampIndirectArrayBounds to ensure out of bounds local variable writes in
     // shaders are protected when the context has GL_EXT_robustness enabled
-    if (context->isRobustnessEnabled())
+    if (contextVk->getShareGroup()->hasAnyContextWithRobustness())
     {
         options->clampIndirectArrayBounds = true;
     }
@@ -113,13 +114,17 @@ std::shared_ptr<WaitableCompileEvent> ShaderVk::compile(const gl::Context *conte
         options->precisionSafeDivision = true;
     }
 
-    if (contextVk->getExtensions().shaderPixelLocalStorageCoherentANGLE)
+    if (contextVk->getExtensions().shaderPixelLocalStorageANGLE)
     {
-        ASSERT(contextVk->getFeatures().supportsFragmentShaderPixelInterlock.enabled);
-        // GL_ARB_fragment_shader_interlock compiles to SPV_EXT_fragment_shader_interlock in both
-        // Vulkan GLSL and our own backend.
-        options->pls.fragmentSynchronizationType =
-            ShFragmentSynchronizationType::FragmentShaderInterlock_ARB_GL;
+        options->pls.type = contextVk->getNativePixelLocalStorageType();
+        if (contextVk->getExtensions().shaderPixelLocalStorageCoherentANGLE)
+        {
+            ASSERT(contextVk->getFeatures().supportsFragmentShaderPixelInterlock.enabled);
+            // GL_ARB_fragment_shader_interlock compiles to SPV_EXT_fragment_shader_interlock in
+            // both Vulkan Glslang and our own backend.
+            options->pls.fragmentSynchronizationType =
+                ShFragmentSynchronizationType::FragmentShaderInterlock_ARB_GL;
+        }
     }
 
     return compileImpl(context, compilerInstance, mState.getSource(), options);

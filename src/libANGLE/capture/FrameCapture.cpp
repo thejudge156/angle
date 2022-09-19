@@ -3088,21 +3088,12 @@ void GenerateLinkedProgram(const gl::Context *context,
 
     // Force the attributes to be bound the same way as in the existing program.
     // This can affect attributes that are optimized out in some implementations.
-    for (const sh::ShaderVariable &attrib : program->getState().getProgramInputs())
+    if (program->getExecutable().hasLinkedShaderStage(gl::ShaderType::Vertex))
     {
-        if (gl::IsBuiltInName(attrib.name))
+        for (const auto &[attrib_name, location] : program->getAttributeBindings())
         {
-            // Don't try to bind built-in attributes
-            continue;
-        }
-
-        // Separable programs may not have a VS, meaning it may not have attributes.
-        if (program->getExecutable().hasLinkedShaderStage(gl::ShaderType::Vertex))
-        {
-            ASSERT(attrib.location != -1);
-            Capture(setupCalls, CaptureBindAttribLocation(replayState, true, id,
-                                                          static_cast<GLuint>(attrib.location),
-                                                          attrib.name.c_str()));
+            Capture(setupCalls, CaptureBindAttribLocation(replayState, true, id, location,
+                                                          attrib_name.c_str()));
         }
     }
 
@@ -4046,12 +4037,15 @@ void CaptureMidExecutionSetup(const gl::Context *context,
             // Populate the vertex array
             for (std::vector<CallCapture> *calls : vertexArraySetupCalls)
             {
-                // Bind the vertexArray and populate it
-                Capture(calls, vertexArrayFuncs.bindVertexArray(replayState, true, vertexArrayID));
-                boundVertexArrayID = vertexArrayID;
-
+                // Bind the vertexArray (if needed) and populate it
+                if (vertexArrayID != boundVertexArrayID)
+                {
+                    Capture(calls,
+                            vertexArrayFuncs.bindVertexArray(replayState, true, vertexArrayID));
+                }
                 CaptureVertexArrayState(calls, context, vertexArray, &replayState);
             }
+            boundVertexArrayID = vertexArrayID;
         }
     }
 
