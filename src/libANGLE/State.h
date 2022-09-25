@@ -613,12 +613,16 @@ class State : angle::NonCopyable
     void setPatchVertices(GLuint value);
     GLuint getPatchVertices() const { return mPatchVertices; }
 
+    // GL_ANGLE_shader_pixel_local_storage
+    void setPixelLocalStorageActive(bool active);
+    bool getPixelLocalStorageActive() const { return mPixelLocalStorageActive; }
+
     // State query functions
     void getBooleanv(GLenum pname, GLboolean *params) const;
     void getFloatv(GLenum pname, GLfloat *params) const;
     angle::Result getIntegerv(const Context *context, GLenum pname, GLint *params) const;
     void getPointerv(const Context *context, GLenum pname, void **params) const;
-    void getIntegeri_v(GLenum target, GLuint index, GLint *data) const;
+    void getIntegeri_v(const Context *context, GLenum target, GLuint index, GLint *data) const;
     void getInteger64i_v(GLenum target, GLuint index, GLint64 *data) const;
     void getBooleani_v(GLenum target, GLuint index, GLboolean *data) const;
 
@@ -714,6 +718,8 @@ class State : angle::NonCopyable
         EXTENDED_DIRTY_BIT_MIPMAP_GENERATION_HINT,  // mipmap generation hint
         EXTENDED_DIRTY_BIT_SHADER_DERIVATIVE_HINT,  // shader derivative hint
         EXTENDED_DIRTY_BIT_SHADING_RATE,            // QCOM_shading_rate
+        EXTENDED_DIRTY_BIT_LOGIC_OP_ENABLED,        // ANGLE_logic_op
+        EXTENDED_DIRTY_BIT_LOGIC_OP,                // ANGLE_logic_op
         EXTENDED_DIRTY_BIT_INVALID,
         EXTENDED_DIRTY_BIT_MAX = EXTENDED_DIRTY_BIT_INVALID,
     };
@@ -747,6 +753,7 @@ class State : angle::NonCopyable
     void setAllDirtyBits()
     {
         mDirtyBits.set();
+        mExtendedDirtyBits.set();
         mDirtyCurrentValues.set();
     }
 
@@ -933,6 +940,12 @@ class State : angle::NonCopyable
     const std::vector<ImageUnit> &getImageUnits() const { return mImageUnits; }
 
     bool hasDisplayTextureShareGroup() const { return mDisplayTextureShareGroup; }
+
+    void setLogicOpEnabled(bool enabled);
+    bool isLogicOpEnabled() const { return mLogicOpEnabled; }
+
+    void setLogicOp(LogicalOperation opcode);
+    LogicalOperation getLogicOp() const { return mLogicOp; }
 
   private:
     friend class Context;
@@ -1160,6 +1173,10 @@ class State : angle::NonCopyable
     // GL_ANGLE_webgl_compatibility
     bool mTextureRectangleEnabled;
 
+    // GL_ANGLE_logic_op
+    bool mLogicOpEnabled;
+    LogicalOperation mLogicOp;
+
     // GL_KHR_parallel_shader_compile
     GLuint mMaxShaderCompilerThreads;
 
@@ -1168,6 +1185,9 @@ class State : angle::NonCopyable
 
     // GL_EXT_tessellation_shader
     GLuint mPatchVertices;
+
+    // GL_ANGLE_shader_pixel_local_storage
+    bool mPixelLocalStorageActive;
 
     // GLES1 emulation: state specific to GLES1
     GLES1State mGLES1State;

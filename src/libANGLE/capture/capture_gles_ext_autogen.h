@@ -229,6 +229,11 @@ angle::CallCapture CaptureVertexAttribDivisorANGLE(const State &glState,
                                                    GLuint index,
                                                    GLuint divisor);
 
+// GL_ANGLE_logic_op
+angle::CallCapture CaptureLogicOpANGLE(const State &glState,
+                                       bool isCallValid,
+                                       LogicalOperation opcodePacked);
+
 // GL_ANGLE_memory_object_flags
 angle::CallCapture CaptureTexStorageMemFlags2DANGLE(const State &glState,
                                                     bool isCallValid,
@@ -2109,6 +2114,8 @@ angle::CallCapture CaptureEGLImageTargetTexture2DOES(const State &glState,
 // GL_OES_EGL_image_external_essl3
 
 // GL_OES_compressed_ETC1_RGB8_texture
+
+// GL_OES_compressed_paletted_texture
 
 // GL_OES_copy_image
 angle::CallCapture CaptureCopyImageSubDataOES(const State &glState,

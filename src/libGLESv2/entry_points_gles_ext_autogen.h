@@ -173,6 +173,9 @@ ANGLE_EXPORT void GL_APIENTRY GL_DrawElementsInstancedANGLE(GLenum mode,
                                                             GLsizei primcount);
 ANGLE_EXPORT void GL_APIENTRY GL_VertexAttribDivisorANGLE(GLuint index, GLuint divisor);
 
+// GL_ANGLE_logic_op
+ANGLE_EXPORT void GL_APIENTRY GL_LogicOpANGLE(GLenum opcode);
+
 // GL_ANGLE_memory_object_flags
 ANGLE_EXPORT void GL_APIENTRY GL_TexStorageMemFlags2DANGLE(GLenum target,
                                                            GLsizei levels,
@@ -1447,6 +1450,8 @@ ANGLE_EXPORT void GL_APIENTRY GL_EGLImageTargetTexture2DOES(GLenum target, GLegl
 // GL_OES_EGL_image_external_essl3
 
 // GL_OES_compressed_ETC1_RGB8_texture
+
+// GL_OES_compressed_paletted_texture
 
 // GL_OES_copy_image
 ANGLE_EXPORT void GL_APIENTRY GL_CopyImageSubDataOES(GLuint srcName,

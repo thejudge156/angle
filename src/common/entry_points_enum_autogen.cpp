@@ -260,6 +260,8 @@ const char *GetEntryPointName(EntryPoint ep)
             return "eglClientWaitSyncKHR";
         case EntryPoint::EGLCopyBuffers:
             return "eglCopyBuffers";
+        case EntryPoint::EGLCopyMetalSharedEventANGLE:
+            return "eglCopyMetalSharedEventANGLE";
         case EntryPoint::EGLCreateContext:
             return "eglCreateContext";
         case EntryPoint::EGLCreateDeviceANGLE:
@@ -1946,6 +1948,8 @@ const char *GetEntryPointName(EntryPoint ep)
             return "glLoadTransposeMatrixf";
         case EntryPoint::GLLogicOp:
             return "glLogicOp";
+        case EntryPoint::GLLogicOpANGLE:
+            return "glLogicOpANGLE";
         case EntryPoint::GLLoseContextCHROMIUM:
             return "glLoseContextCHROMIUM";
         case EntryPoint::GLMap1d:
