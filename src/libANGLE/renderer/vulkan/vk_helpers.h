@@ -1237,6 +1237,8 @@ class OutsideRenderPassCommandBufferHelper final : public CommandBufferHelperCom
     OutsideRenderPassCommandBuffer mCommandBuffer;
 };
 
+using RenderPassSerial = Serial;
+
 class RenderPassCommandBufferHelper final : public CommandBufferHelperCommon
 {
   public:
@@ -1300,6 +1302,7 @@ class RenderPassCommandBufferHelper final : public CommandBufferHelperCommon
                                   const PackedAttachmentCount colorAttachmentCount,
                                   const PackedAttachmentIndex depthStencilAttachmentIndex,
                                   const PackedClearValuesArray &clearValues,
+                                  const RenderPassSerial renderPassSerial,
                                   RenderPassCommandBuffer **commandBufferOut);
 
     angle::Result endRenderPass(ContextVk *contextVk);
@@ -1387,6 +1390,8 @@ class RenderPassCommandBufferHelper final : public CommandBufferHelperCommon
     }
     void addCommandDiagnostics(ContextVk *contextVk);
 
+    RenderPassSerial getRenderPassSerial() const { return mRenderPassSerial; }
+
   private:
     angle::Result initializeCommandBuffer(Context *context);
     angle::Result beginRenderPassCommandBuffer(ContextVk *contextVk);
@@ -1467,6 +1472,10 @@ class RenderPassCommandBufferHelper final : public CommandBufferHelperCommon
     // This is last renderpass before present and this is the image will be presented. We can use
     // final layout of the renderpass to transition it to the presentable layout
     ImageHelper *mImageOptimizeForPresent;
+
+    // This serial is updated when a render pass starts, and is used to identify the framebuffer
+    // that has opened it.
+    RenderPassSerial mRenderPassSerial;
 };
 
 // The following class helps support both Vulkan and ANGLE secondary command buffers by
@@ -1687,6 +1696,8 @@ class ImageHelper final : public Resource, public angle::Subject
                                      const void **extraAllocationInfo,
                                      uint32_t currentQueueFamilyIndex,
                                      VkMemoryPropertyFlags flags);
+
+    static constexpr VkImageUsageFlags kDefaultImageViewUsageFlags = 0;
     angle::Result initLayerImageView(Context *context,
                                      gl::TextureType textureType,
                                      VkImageAspectFlags aspectMask,
@@ -1697,7 +1708,8 @@ class ImageHelper final : public Resource, public angle::Subject
                                      uint32_t baseArrayLayer,
                                      uint32_t layerCount,
                                      gl::SrgbWriteControlMode srgbWriteControlMode,
-                                     gl::YuvSamplingMode yuvSamplingMode) const;
+                                     gl::YuvSamplingMode yuvSamplingMode,
+                                     VkImageUsageFlags imageUsageFlags) const;
     angle::Result initReinterpretedLayerImageView(Context *context,
                                                   gl::TextureType textureType,
                                                   VkImageAspectFlags aspectMask,
@@ -1715,7 +1727,8 @@ class ImageHelper final : public Resource, public angle::Subject
                                 const gl::SwizzleState &swizzleMap,
                                 ImageView *imageViewOut,
                                 LevelIndex baseMipLevelVk,
-                                uint32_t levelCount);
+                                uint32_t levelCount,
+                                VkImageUsageFlags imageUsageFlags);
     // Create a 2D[Array] for staging purposes.  Used by:
     //
     // - TextureVk::copySubImageImplWithDraw
@@ -2813,7 +2826,8 @@ class ImageViewHelper final : angle::NonCopyable
                                     LevelIndex baseLevel,
                                     uint32_t levelCount,
                                     uint32_t baseLayer,
-                                    uint32_t layerCount);
+                                    uint32_t layerCount,
+                                    VkImageUsageFlags imageUsageFlags);
 
     // Create SRGB-reinterpreted read views
     angle::Result initSRGBReadViewsImpl(ContextVk *contextVk,

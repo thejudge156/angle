@@ -16,7 +16,7 @@
 #include <vector>
 
 #include <EGL/eglext.h>
-#include <platform/Platform.h>
+#include <platform/PlatformMethods.h>
 
 #include "anglebase/no_destructor.h"
 #include "common/android_util.h"
@@ -287,8 +287,6 @@ EGLAttrib GetPlatformTypeFromEnvironment()
     return EGL_PLATFORM_X11_EXT;
 #elif defined(ANGLE_USE_WAYLAND)
     return EGL_PLATFORM_WAYLAND_EXT;
-#elif defined(ANGLE_USE_GBM)
-    return EGL_PLATFORM_GBM_KHR;
 #elif defined(ANGLE_USE_VULKAN_DISPLAY) && defined(ANGLE_VULKAN_DISPLAY_MODE_SIMPLE)
     return EGL_PLATFORM_VULKAN_DISPLAY_MODE_SIMPLE_ANGLE;
 #elif defined(ANGLE_USE_VULKAN_DISPLAY) && defined(ANGLE_VULKAN_DISPLAY_MODE_HEADLESS)
