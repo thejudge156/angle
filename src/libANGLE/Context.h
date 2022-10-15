@@ -649,7 +649,7 @@ class Context final : public egl::LabeledObject, angle::NonCopyable, public angl
         return mTransformFeedbackMap;
     }
 
-    void onPreSwap() const;
+    void onPreSwap();
 
     Program *getActiveLinkedProgram() const;
 
@@ -698,7 +698,7 @@ class Context final : public egl::LabeledObject, angle::NonCopyable, public angl
     angle::Result syncDirtyObjects(const State::DirtyObjects &objectMask, Command command);
     angle::Result syncStateForReadPixels();
     angle::Result syncStateForTexImage();
-    angle::Result syncStateForBlit();
+    angle::Result syncStateForBlit(GLbitfield mask);
     angle::Result syncStateForClear();
     angle::Result syncTextureForCopy(Texture *texture);
 
@@ -797,7 +797,6 @@ class Context final : public egl::LabeledObject, angle::NonCopyable, public angl
     GraphicsResetStatus mResetStatus;
     bool mContextLostForced;
     GLenum mResetStrategy;
-    const bool mRobustAccess;
     const bool mSurfacelessSupported;
     egl::Surface *mCurrentDrawSurface;
     egl::Surface *mCurrentReadSurface;

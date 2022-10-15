@@ -468,6 +468,7 @@ Context::Context(egl::Display *display,
              GetRobustResourceInit(display, attribs),
              memoryProgramCache != nullptr,
              GetContextPriority(attribs),
+             GetRobustAccess(attribs),
              GetProtectedContent(attribs)),
       mShared(shareContext != nullptr || shareTextures != nullptr || shareSemaphores != nullptr),
       mSkipValidation(GetNoError(attribs)),
@@ -484,7 +485,6 @@ Context::Context(egl::Display *display,
       mResetStatus(GraphicsResetStatus::NoError),
       mContextLostForced(false),
       mResetStrategy(GetResetStrategy(attribs)),
-      mRobustAccess(GetRobustAccess(attribs)),
       mSurfacelessSupported(displayExtensions.surfacelessContext),
       mCurrentDrawSurface(static_cast<egl::Surface *>(EGL_NO_SURFACE)),
       mCurrentReadSurface(static_cast<egl::Surface *>(EGL_NO_SURFACE)),
@@ -1657,7 +1657,7 @@ void Context::getBooleanvImpl(GLenum pname, GLboolean *params) const
             *params = GL_TRUE;
             break;
         case GL_CONTEXT_ROBUST_ACCESS_EXT:
-            *params = ConvertToGLBoolean(mRobustAccess);
+            *params = ConvertToGLBoolean(mState.hasRobustAccess());
             break;
 
         default:
@@ -1880,7 +1880,7 @@ void Context::getIntegervImpl(GLenum pname, GLint *params) const
                 contextFlags |= GL_CONTEXT_FLAG_DEBUG_BIT_KHR;
             }
 
-            if (mRobustAccess)
+            if (mState.hasRobustAccess())
             {
                 contextFlags |= GL_CONTEXT_FLAG_ROBUST_ACCESS_BIT;
             }
@@ -3046,7 +3046,7 @@ bool Context::isResetNotificationEnabled() const
 
 bool Context::isRobustnessEnabled() const
 {
-    return mRobustAccess;
+    return mState.hasRobustAccess();
 }
 
 const egl::Config *Context::getConfig() const
@@ -3709,23 +3709,25 @@ Extensions Context::generateSupportedExtensions() const
 
         // GL_EXT_clip_cull_distance requires ESSL3
         supportedExtensions.clipCullDistanceEXT = false;
+
+        // ANGLE_shader_pixel_local_storage requires ES3
+        supportedExtensions.shaderPixelLocalStorageANGLE         = false;
+        supportedExtensions.shaderPixelLocalStorageCoherentANGLE = false;
     }
 
     if (getClientVersion() < ES_3_1)
     {
         // Disable ES3.1+ extensions
-        supportedExtensions.geometryShaderEXT                    = false;
-        supportedExtensions.geometryShaderOES                    = false;
-        supportedExtensions.gpuShader5EXT                        = false;
-        supportedExtensions.primitiveBoundingBoxEXT              = false;
-        supportedExtensions.shaderImageAtomicOES                 = false;
-        supportedExtensions.shaderIoBlocksEXT                    = false;
-        supportedExtensions.shaderIoBlocksOES                    = false;
-        supportedExtensions.shaderPixelLocalStorageANGLE         = false;
-        supportedExtensions.shaderPixelLocalStorageCoherentANGLE = false;
-        supportedExtensions.tessellationShaderEXT                = false;
-        supportedExtensions.textureBufferEXT                     = false;
-        supportedExtensions.textureBufferOES                     = false;
+        supportedExtensions.geometryShaderEXT       = false;
+        supportedExtensions.geometryShaderOES       = false;
+        supportedExtensions.gpuShader5EXT           = false;
+        supportedExtensions.primitiveBoundingBoxEXT = false;
+        supportedExtensions.shaderImageAtomicOES    = false;
+        supportedExtensions.shaderIoBlocksEXT       = false;
+        supportedExtensions.shaderIoBlocksOES       = false;
+        supportedExtensions.tessellationShaderEXT   = false;
+        supportedExtensions.textureBufferEXT        = false;
+        supportedExtensions.textureBufferOES        = false;
 
         // TODO(http://anglebug.com/2775): Multisample arrays could be supported on ES 3.0 as well
         // once 2D multisample texture extension is exposed there.
@@ -3804,7 +3806,7 @@ Extensions Context::generateSupportedExtensions() const
     // mState.mExtensions.robustBufferAccessBehaviorKHR is true only if robust access is true and
     // the backend supports it.
     supportedExtensions.robustBufferAccessBehaviorKHR =
-        mRobustAccess && supportedExtensions.robustBufferAccessBehaviorKHR;
+        mState.hasRobustAccess() && supportedExtensions.robustBufferAccessBehaviorKHR;
 
     // Enable the cache control query unconditionally.
     supportedExtensions.programCacheControlANGLE = true;
@@ -4412,11 +4414,12 @@ void Context::updateCaps()
 
     if (!mState.mExtensions.parallelShaderCompileKHR)
     {
-        mSingleThreadPool = angle::WorkerThreadPool::Create(false);
+        mSingleThreadPool = angle::WorkerThreadPool::Create(1);
     }
-    mMultiThreadPool = angle::WorkerThreadPool::Create(
+    const bool multithreaded =
         mState.mExtensions.parallelShaderCompileKHR ||
-        getFrontendFeatures().enableCompressingPipelineCacheInThreadPool.enabled);
+        getFrontendFeatures().enableCompressingPipelineCacheInThreadPool.enabled;
+    mMultiThreadPool = angle::WorkerThreadPool::Create(multithreaded ? 0 : 1);
 
     // Reinitialize some dirty bits that depend on extensions.
     if (mState.isRobustResourceInitEnabled())
@@ -4436,7 +4439,7 @@ void Context::updateCaps()
     // We need to validate buffer bounds if we are in a WebGL or robust access context and the
     // back-end does not support robust buffer access behaviour.
     mBufferAccessValidationEnabled = (!mSupportedExtensions.robustBufferAccessBehaviorKHR &&
-                                      (mState.isWebGL() || mRobustAccess));
+                                      (mState.isWebGL() || mState.hasRobustAccess()));
 
     // Cache this in the VertexArrays. They need to check it in state change notifications.
     for (auto vaoIter : mVertexArrayMap)
@@ -4576,8 +4579,7 @@ void Context::blitFramebuffer(GLint srcX0,
         return;
     }
 
-    ANGLE_CONTEXT_TRY(syncStateForBlit());
-
+    ANGLE_CONTEXT_TRY(syncStateForBlit(mask));
     ANGLE_CONTEXT_TRY(drawFramebuffer->blit(this, srcArea, dstArea, mask, filter));
 }
 
@@ -5713,9 +5715,25 @@ angle::Result Context::syncStateForTexImage()
     return syncState(mTexImageDirtyBits, mTexImageDirtyObjects, Command::TexImage);
 }
 
-angle::Result Context::syncStateForBlit()
+angle::Result Context::syncStateForBlit(GLbitfield mask)
 {
-    return syncState(mBlitDirtyBits, mBlitDirtyObjects, Command::Blit);
+    uint32_t commandMask = 0;
+    if ((mask & GL_COLOR_BUFFER_BIT) != 0)
+    {
+        commandMask |= CommandBlitBufferColor;
+    }
+    if ((mask & GL_DEPTH_BUFFER_BIT) != 0)
+    {
+        commandMask |= CommandBlitBufferDepth;
+    }
+    if ((mask & GL_STENCIL_BUFFER_BIT) != 0)
+    {
+        commandMask |= CommandBlitBufferStencil;
+    }
+
+    Command command = static_cast<Command>(static_cast<uint32_t>(Command::Blit) + commandMask);
+
+    return syncState(mBlitDirtyBits, mBlitDirtyObjects, command);
 }
 
 angle::Result Context::syncStateForClear()
@@ -9437,9 +9455,9 @@ void Context::maxShaderCompilerThreads(GLuint count)
     // A count of zero specifies a request for no parallel compiling or linking.
     if ((oldCount == 0 || count == 0) && (oldCount != 0 || count != 0))
     {
-        mMultiThreadPool = angle::WorkerThreadPool::Create(count > 0);
+        const bool multithreaded = count > 0;
+        mMultiThreadPool         = angle::WorkerThreadPool::Create(multithreaded ? count : 1);
     }
-    mMultiThreadPool->setMaxThreads(count);
     mImplementation->setMaxShaderCompilerThreads(count);
 }
 
@@ -9668,7 +9686,7 @@ egl::Error Context::unsetDefaultFramebuffer()
     return egl::NoError();
 }
 
-void Context::onPreSwap() const
+void Context::onPreSwap()
 {
     // Dump frame capture if enabled.
     getShareGroup()->getFrameCaptureShared()->onEndFrame(this);

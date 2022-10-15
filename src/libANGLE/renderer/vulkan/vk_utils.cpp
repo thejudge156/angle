@@ -389,6 +389,11 @@ VkDevice Context::getDevice() const
     return mRenderer->getDevice();
 }
 
+const angle::FeaturesVk &Context::getFeatures() const
+{
+    return mRenderer->getFeatures();
+}
+
 // MemoryProperties implementation.
 MemoryProperties::MemoryProperties() : mMemoryProperties{} {}
 
@@ -1191,9 +1196,13 @@ void InitExtendedDynamicState2EXTFunctions(VkDevice device)
 }
 
 // VK_KHR_fragment_shading_rate
-void InitFragmentShadingRateKHRFunctions(VkDevice device)
+void InitFragmentShadingRateKHRInstanceFunction(VkInstance instance)
 {
-    GET_DEVICE_FUNC(vkGetPhysicalDeviceFragmentShadingRatesKHR);
+    GET_INSTANCE_FUNC(vkGetPhysicalDeviceExternalSemaphorePropertiesKHR);
+}
+
+void InitFragmentShadingRateKHRDeviceFunction(VkDevice device)
+{
     GET_DEVICE_FUNC(vkCmdSetFragmentShadingRateKHR);
 }
 

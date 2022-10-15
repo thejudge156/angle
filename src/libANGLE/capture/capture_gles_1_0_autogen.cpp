@@ -19,7 +19,6 @@ using namespace angle;
 
 namespace gl
 {
-
 CallCapture CaptureAlphaFunc(const State &glState,
                              bool isCallValid,
                              AlphaTestFunc funcPacked,
@@ -504,7 +503,7 @@ CallCapture CaptureGetMaterialfv(const State &glState,
 {
     ParamBuffer paramBuffer;
 
-    paramBuffer.addEnumParam("face", GLESEnum::MaterialFace, ParamType::TGLenum, face);
+    paramBuffer.addEnumParam("face", GLESEnum::TriangleFace, ParamType::TGLenum, face);
     paramBuffer.addValueParam("pnamePacked", ParamType::TMaterialParameter, pnamePacked);
 
     if (isCallValid)
@@ -533,7 +532,7 @@ CallCapture CaptureGetMaterialxv(const State &glState,
 {
     ParamBuffer paramBuffer;
 
-    paramBuffer.addEnumParam("face", GLESEnum::MaterialFace, ParamType::TGLenum, face);
+    paramBuffer.addEnumParam("face", GLESEnum::TriangleFace, ParamType::TGLenum, face);
     paramBuffer.addValueParam("pnamePacked", ParamType::TMaterialParameter, pnamePacked);
 
     if (isCallValid)
@@ -912,7 +911,7 @@ CallCapture CaptureMaterialf(const State &glState,
 {
     ParamBuffer paramBuffer;
 
-    paramBuffer.addEnumParam("face", GLESEnum::MaterialFace, ParamType::TGLenum, face);
+    paramBuffer.addEnumParam("face", GLESEnum::TriangleFace, ParamType::TGLenum, face);
     paramBuffer.addValueParam("pnamePacked", ParamType::TMaterialParameter, pnamePacked);
     paramBuffer.addValueParam("param", ParamType::TGLfloat, param);
 
@@ -927,7 +926,7 @@ CallCapture CaptureMaterialfv(const State &glState,
 {
     ParamBuffer paramBuffer;
 
-    paramBuffer.addEnumParam("face", GLESEnum::MaterialFace, ParamType::TGLenum, face);
+    paramBuffer.addEnumParam("face", GLESEnum::TriangleFace, ParamType::TGLenum, face);
     paramBuffer.addValueParam("pnamePacked", ParamType::TMaterialParameter, pnamePacked);
 
     if (isCallValid)
@@ -956,7 +955,7 @@ CallCapture CaptureMaterialx(const State &glState,
 {
     ParamBuffer paramBuffer;
 
-    paramBuffer.addEnumParam("face", GLESEnum::MaterialFace, ParamType::TGLenum, face);
+    paramBuffer.addEnumParam("face", GLESEnum::TriangleFace, ParamType::TGLenum, face);
     paramBuffer.addValueParam("pnamePacked", ParamType::TMaterialParameter, pnamePacked);
     paramBuffer.addValueParam("param", ParamType::TGLfixed, param);
 
@@ -971,7 +970,7 @@ CallCapture CaptureMaterialxv(const State &glState,
 {
     ParamBuffer paramBuffer;
 
-    paramBuffer.addEnumParam("face", GLESEnum::MaterialFace, ParamType::TGLenum, face);
+    paramBuffer.addEnumParam("face", GLESEnum::TriangleFace, ParamType::TGLenum, face);
     paramBuffer.addValueParam("pnamePacked", ParamType::TMaterialParameter, pnamePacked);
 
     if (isCallValid)

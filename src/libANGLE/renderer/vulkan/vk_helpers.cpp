@@ -1633,6 +1633,10 @@ angle::Result RenderPassCommandBufferHelper::reset(Context *context)
     }
 
     mCurrentSubpass = 0;
+
+    // Reset the image views used for imageless framebuffer (if any)
+    std::fill(mImageViews.begin(), mImageViews.end(), VK_NULL_HANDLE);
+
     return initializeCommandBuffer(context);
 }
 
@@ -2086,7 +2090,7 @@ void RenderPassCommandBufferHelper::finalizeDepthStencilImageLayoutAndLoadStore(
 
 angle::Result RenderPassCommandBufferHelper::beginRenderPass(
     ContextVk *contextVk,
-    const Framebuffer &framebuffer,
+    MaybeImagelessFramebuffer &framebuffer,
     const gl::Rectangle &renderArea,
     const RenderPassDesc &renderPassDesc,
     const AttachmentOpsArray &renderPassAttachmentOps,
@@ -2102,11 +2106,11 @@ angle::Result RenderPassCommandBufferHelper::beginRenderPass(
     mAttachmentOps               = renderPassAttachmentOps;
     mDepthStencilAttachmentIndex = depthStencilAttachmentIndex;
     mColorAttachmentsCount       = colorAttachmentCount;
-    mFramebuffer.setHandle(framebuffer.getHandle());
-    mRenderArea       = renderArea;
-    mClearValues      = clearValues;
-    mRenderPassSerial = renderPassSerial;
-    *commandBufferOut = &getCommandBuffer();
+    mFramebuffer                 = std::move(framebuffer);
+    mRenderArea                  = renderArea;
+    mClearValues                 = clearValues;
+    mRenderPassSerial            = renderPassSerial;
+    *commandBufferOut            = &getCommandBuffer();
 
     mRenderPassStarted = true;
     mCounter++;
@@ -2118,7 +2122,7 @@ angle::Result RenderPassCommandBufferHelper::beginRenderPassCommandBuffer(Contex
 {
     VkCommandBufferInheritanceInfo inheritanceInfo = {};
     ANGLE_TRY(RenderPassCommandBuffer::InitializeRenderPassInheritanceInfo(
-        contextVk, mFramebuffer, mRenderPassDesc, &inheritanceInfo));
+        contextVk, mFramebuffer.getFramebuffer(), mRenderPassDesc, &inheritanceInfo));
     inheritanceInfo.subpass = mCurrentSubpass;
 
     return getCommandBuffer().begin(contextVk, inheritanceInfo);
@@ -2276,7 +2280,6 @@ angle::Result RenderPassCommandBufferHelper::flushToPrimary(Context *context,
     executeBarriers(context->getRenderer()->getFeatures(), primary);
 
     ASSERT(renderPass != nullptr);
-
     VkRenderPassBeginInfo beginInfo    = {};
     beginInfo.sType                    = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     beginInfo.renderPass               = renderPass->getHandle();
@@ -2287,6 +2290,18 @@ angle::Result RenderPassCommandBufferHelper::flushToPrimary(Context *context,
     beginInfo.renderArea.extent.height = static_cast<uint32_t>(mRenderArea.height);
     beginInfo.clearValueCount          = static_cast<uint32_t>(mRenderPassDesc.attachmentCount());
     beginInfo.pClearValues             = mClearValues.data();
+
+    // With imageless framebuffers, the attachments should be also added to beginInfo.
+    VkRenderPassAttachmentBeginInfoKHR rpAttachmentBeginInfo = {};
+    if (mFramebuffer.isImageless())
+    {
+        rpAttachmentBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_ATTACHMENT_BEGIN_INFO_KHR;
+        rpAttachmentBeginInfo.attachmentCount =
+            static_cast<uint32_t>(mRenderPassDesc.attachmentCount());
+        rpAttachmentBeginInfo.pAttachments = mFramebuffer.getImageViews().data();
+
+        AddToPNextChain(&beginInfo, &rpAttachmentBeginInfo);
+    }
 
     // Run commands inside the RenderPass.
     constexpr VkSubpassContents kSubpassContents =
@@ -2308,12 +2323,13 @@ angle::Result RenderPassCommandBufferHelper::flushToPrimary(Context *context,
     return reset(context);
 }
 
-void RenderPassCommandBufferHelper::updateRenderPassForResolve(ContextVk *contextVk,
-                                                               Framebuffer *newFramebuffer,
-                                                               const RenderPassDesc &renderPassDesc)
+void RenderPassCommandBufferHelper::updateRenderPassForResolve(
+    ContextVk *contextVk,
+    MaybeImagelessFramebuffer &newFramebuffer,
+    const RenderPassDesc &renderPassDesc)
 {
-    ASSERT(newFramebuffer);
-    mFramebuffer.setHandle(newFramebuffer->getHandle());
+    ASSERT(newFramebuffer.getHandle());
+    mFramebuffer    = std::move(newFramebuffer);
     mRenderPassDesc = renderPassDesc;
 }
 
@@ -3839,7 +3855,7 @@ void QueryHelper::resetQueryPoolImpl(ContextVk *contextVk,
                                      CommandBufferT *commandBuffer)
 {
     RendererVk *renderer = contextVk->getRenderer();
-    if (vkResetQueryPoolEXT != nullptr && renderer->getFeatures().supportsHostQueryReset.enabled)
+    if (renderer->getFeatures().supportsHostQueryReset.enabled)
     {
         vkResetQueryPoolEXT(contextVk->getDevice(), queryPool.getHandle(), mQuery, mQueryCount);
     }
@@ -4956,6 +4972,7 @@ ImageHelper::ImageHelper(ImageHelper &&other)
       mFirstAllocatedLevel(other.mFirstAllocatedLevel),
       mLayerCount(other.mLayerCount),
       mLevelCount(other.mLevelCount),
+      mViewFormats(other.mViewFormats),
       mSubresourceUpdates(std::move(other.mSubresourceUpdates)),
       mTotalStagedBufferUpdateSize(other.mTotalStagedBufferUpdateSize),
       mCurrentSingleClearValue(std::move(other.mCurrentSingleClearValue)),
@@ -4992,6 +5009,8 @@ void ImageHelper::resetCachedProperties()
     mLayerCount                  = 0;
     mLevelCount                  = 0;
     mTotalStagedBufferUpdateSize = 0;
+    std::fill(mViewFormats.begin(), mViewFormats.begin() + mViewFormats.max_size(),
+              VK_FORMAT_UNDEFINED);
     mYcbcrConversionDesc.reset();
     mCurrentSingleClearValue.reset();
     mRenderPassUsageFlags.reset();
@@ -5253,6 +5272,9 @@ angle::Result ImageHelper::initExternal(Context *context,
 
     ANGLE_VK_TRY(context, mImage.init(context->getDevice(), imageInfo));
 
+    // Find the image formats in pNext chain in imageInfo.
+    deriveImageViewFormatFromCreateInfoPNext(imageInfo, mViewFormats);
+
     mVkImageCreateInfo               = imageInfo;
     mVkImageCreateInfo.pNext         = nullptr;
     mVkImageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -5304,6 +5326,33 @@ const void *ImageHelper::DeriveCreateInfoPNext(
     }
 
     return pNext;
+}
+
+void ImageHelper::deriveImageViewFormatFromCreateInfoPNext(VkImageCreateInfo &imageInfo,
+                                                           ImageFormats &formatOut)
+{
+    const VkBaseInStructure *pNextChain =
+        reinterpret_cast<const VkBaseInStructure *>(imageInfo.pNext);
+    while (pNextChain != nullptr &&
+           pNextChain->sType != VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR)
+    {
+        pNextChain = pNextChain->pNext;
+    }
+
+    if (pNextChain != nullptr)
+    {
+        const VkImageFormatListCreateInfoKHR *imageFormatCreateInfo =
+            reinterpret_cast<const VkImageFormatListCreateInfoKHR *>(pNextChain);
+
+        for (uint32_t i = 0; i < imageFormatCreateInfo->viewFormatCount; i++)
+        {
+            formatOut[i] = *(imageFormatCreateInfo->pViewFormats + i);
+        }
+    }
+    else
+    {
+        formatOut[0] = imageInfo.format;
+    }
 }
 
 void ImageHelper::deriveExternalImageTiling(const void *createInfoChain)
@@ -5879,11 +5928,16 @@ angle::Result ImageHelper::initImplicitMultisampledRenderToTexture(
     // |initMemory| call below failing.
     const bool hasLazilyAllocatedMemory = memoryProperties.hasLazilyAllocatedMemory();
 
+    const VkImageUsageFlags kLazyFlags =
+        hasLazilyAllocatedMemory ? VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT : 0;
+    constexpr VkImageUsageFlags kColorFlags =
+        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+    constexpr VkImageUsageFlags kDepthStencilFlags = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
     const VkImageUsageFlags kMultisampledUsageFlags =
-        (hasLazilyAllocatedMemory ? VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT : 0) |
-        (resolveImage.getAspectFlags() == VK_IMAGE_ASPECT_COLOR_BIT
-             ? VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
-             : VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+        kLazyFlags |
+        (resolveImage.getAspectFlags() == VK_IMAGE_ASPECT_COLOR_BIT ? kColorFlags
+                                                                    : kDepthStencilFlags);
     const VkImageCreateFlags kMultisampledCreateFlags =
         hasProtectedContent ? VK_IMAGE_CREATE_PROTECTED_BIT : 0;
 
@@ -7275,14 +7329,15 @@ void ImageHelper::restoreSubresourceContentImpl(gl::LevelIndex level,
             {
                 removeSingleStagedClearAfterInvalidate(level, layerIndex, layerCount);
             }
-            // Additionally, as the resource has been rewritten to in the render pass, its no longer
-            // cleared to the cached value.
-            mCurrentSingleClearValue.reset();
             break;
         default:
             UNREACHABLE();
             break;
     }
+
+    // Additionally, as the resource has been rewritten to in the render pass, its no longer cleared
+    // to the cached value.
+    mCurrentSingleClearValue.reset();
 
     *contentDefinedMask |= layerRangeBits;
 }
@@ -10136,7 +10191,10 @@ bool ShaderProgramHelper::valid(const gl::ShaderType shaderType) const
 void ShaderProgramHelper::destroy(RendererVk *rendererVk)
 {
     mGraphicsPipelines.destroy(rendererVk);
-    mComputePipeline.destroy(rendererVk->getDevice());
+    for (PipelineHelper &computePipeline : mComputePipelines)
+    {
+        computePipeline.destroy(rendererVk->getDevice());
+    }
     for (BindingPointer<ShaderAndSerial> &shader : mShaders)
     {
         shader.reset();
@@ -10146,7 +10204,10 @@ void ShaderProgramHelper::destroy(RendererVk *rendererVk)
 void ShaderProgramHelper::release(ContextVk *contextVk)
 {
     mGraphicsPipelines.release(contextVk);
-    mComputePipeline.release(contextVk);
+    for (PipelineHelper &computePipeline : mComputePipelines)
+    {
+        computePipeline.release(contextVk);
+    }
     for (BindingPointer<ShaderAndSerial> &shader : mShaders)
     {
         shader.reset();
@@ -10176,15 +10237,18 @@ void ShaderProgramHelper::setSpecializationConstant(sh::vk::SpecializationConsta
     }
 }
 
-angle::Result ShaderProgramHelper::getComputePipeline(Context *context,
+angle::Result ShaderProgramHelper::getComputePipeline(ContextVk *contextVk,
                                                       PipelineCacheAccess *pipelineCache,
                                                       const PipelineLayout &pipelineLayout,
+                                                      ComputePipelineFlags pipelineFlags,
                                                       PipelineSource source,
                                                       PipelineHelper **pipelineOut)
 {
-    if (mComputePipeline.valid())
+    PipelineHelper *computePipeline = &mComputePipelines[pipelineFlags.bits()];
+
+    if (computePipeline->valid())
     {
-        *pipelineOut = &mComputePipeline;
+        *pipelineOut = computePipeline;
         return angle::Result::Continue;
     }
 
@@ -10205,6 +10269,23 @@ angle::Result ShaderProgramHelper::getComputePipeline(Context *context,
     createInfo.basePipelineHandle = VK_NULL_HANDLE;
     createInfo.basePipelineIndex  = 0;
 
+    VkPipelineRobustnessCreateInfoEXT robustness = {};
+    robustness.sType = VK_STRUCTURE_TYPE_PIPELINE_ROBUSTNESS_CREATE_INFO_EXT;
+
+    // Enable robustness on the pipeline if needed.  Note that the global robustBufferAccess feature
+    // must be disabled by default.
+    if (pipelineFlags[ComputePipelineFlag::Robust])
+    {
+        ASSERT(contextVk->getFeatures().supportsPipelineRobustness.enabled);
+
+        robustness.storageBuffers = VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_ROBUST_BUFFER_ACCESS_EXT;
+        robustness.uniformBuffers = VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_ROBUST_BUFFER_ACCESS_EXT;
+        robustness.vertexInputs   = VK_PIPELINE_ROBUSTNESS_BUFFER_BEHAVIOR_DEVICE_DEFAULT_EXT;
+        robustness.images         = VK_PIPELINE_ROBUSTNESS_IMAGE_BEHAVIOR_DEVICE_DEFAULT_EXT;
+
+        AddToPNextChain(&createInfo, &robustness);
+    }
+
     VkPipelineCreationFeedback feedback               = {};
     VkPipelineCreationFeedback perStageFeedback       = {};
     VkPipelineCreationFeedbackCreateInfo feedbackInfo = {};
@@ -10216,14 +10297,14 @@ angle::Result ShaderProgramHelper::getComputePipeline(Context *context,
     feedbackInfo.pPipelineStageCreationFeedbacks    = &perStageFeedback;
 
     const bool supportsFeedback =
-        context->getRenderer()->getFeatures().supportsPipelineCreationFeedback.enabled;
+        contextVk->getRenderer()->getFeatures().supportsPipelineCreationFeedback.enabled;
     if (supportsFeedback)
     {
-        createInfo.pNext = &feedbackInfo;
+        AddToPNextChain(&createInfo, &feedbackInfo);
     }
 
-    ANGLE_TRY(
-        pipelineCache->createComputePipeline(context, createInfo, &mComputePipeline.getPipeline()));
+    ANGLE_TRY(pipelineCache->createComputePipeline(contextVk, createInfo,
+                                                   &computePipeline->getPipeline()));
 
     if (supportsFeedback)
     {
@@ -10231,12 +10312,12 @@ angle::Result ShaderProgramHelper::getComputePipeline(Context *context,
             (feedback.flags & VK_PIPELINE_CREATION_FEEDBACK_APPLICATION_PIPELINE_CACHE_HIT_BIT) !=
             0;
 
-        mComputePipeline.setCacheLookUpFeedback(cacheHit ? CacheLookUpFeedback::Hit
+        computePipeline->setCacheLookUpFeedback(cacheHit ? CacheLookUpFeedback::Hit
                                                          : CacheLookUpFeedback::Miss);
-        ApplyPipelineCreationFeedback(context, feedback);
+        ApplyPipelineCreationFeedback(contextVk, feedback);
     }
 
-    *pipelineOut = &mComputePipeline;
+    *pipelineOut = computePipeline;
     return angle::Result::Continue;
 }
 

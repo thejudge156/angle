@@ -123,7 +123,7 @@ void SetupDefaultPipelineState(const ContextVk *contextVk,
                                gl::PrimitiveMode mode,
                                vk::GraphicsPipelineDesc *graphicsPipelineDescOut)
 {
-    graphicsPipelineDescOut->initDefaults(contextVk);
+    graphicsPipelineDescOut->initDefaults(contextVk, vk::GraphicsPipelineSubset::Complete);
     graphicsPipelineDescOut->setTopology(mode);
     graphicsPipelineDescOut->setRenderPassSampleCount(1);
     graphicsPipelineDescOut->setRenderPassFramebufferFetchMode(glExecutable.usesFramebufferFetch());
@@ -711,8 +711,11 @@ angle::Result ProgramExecutableVk::warmUpPipelineCache(ContextVk *contextVk,
         // There is no state associated with compute programs, so only one pipeline needs creation
         // to warm up the cache.
         vk::PipelineHelper *pipeline = nullptr;
-        return getComputePipeline(contextVk, &pipelineCache, PipelineSource::WarmUp, glExecutable,
-                                  &pipeline);
+        ANGLE_TRY(getComputePipeline(contextVk, &pipelineCache, PipelineSource::WarmUp,
+                                     glExecutable, &pipeline));
+
+        // Merge the cache with RendererVk's
+        return contextVk->getRenderer()->mergeIntoPipelineCache(mPipelineCache);
     }
 
     const vk::GraphicsPipelineDesc *descPtr = nullptr;
@@ -1110,7 +1113,8 @@ angle::Result ProgramExecutableVk::getComputePipeline(ContextVk *contextVk,
 
     vk::ShaderProgramHelper *shaderProgram = mComputeProgramInfo.getShaderProgram();
     ASSERT(shaderProgram);
-    return shaderProgram->getComputePipeline(contextVk, pipelineCache, getPipelineLayout(), source,
+    return shaderProgram->getComputePipeline(contextVk, pipelineCache, getPipelineLayout(),
+                                             contextVk->getComputePipelineFlags(), source,
                                              pipelineOut);
 }
 

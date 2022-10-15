@@ -5,7 +5,6 @@
 //
 #include "anglebase/numerics/safe_conversions.h"
 #include "common/mathutil.h"
-#include "platform/FeaturesVk_autogen.h"
 #include "test_utils/ANGLETest.h"
 #include "test_utils/gl_raii.h"
 #include "util/random_utils.h"
@@ -2198,7 +2197,7 @@ layout(local_size_x=1) in;
 void main()
 {
 })";
-    ANGLE_GL_COMPUTE_PROGRAM(computePogram, kComputeShader);
+    ANGLE_GL_COMPUTE_PROGRAM(computeProgram, kComputeShader);
 
     glViewport(0, 0, getWindowWidth(), getWindowHeight());
     glClearColor(0, 0, 0, 0);
@@ -2308,7 +2307,7 @@ void main() {
         EXPECT_PIXEL_COLOR_EQ(getWindowWidth() / 2, 0, GLColor::yellow);
 
         glBindVertexArray(vao[1]);
-        glUseProgram(computePogram.get());
+        glUseProgram(computeProgram.get());
         glDispatchCompute(1, 1, 1);
 
         glUseProgram(renderProgram1.get());

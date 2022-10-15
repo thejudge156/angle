@@ -101,6 +101,7 @@ class State : angle::NonCopyable
           bool robustResourceInit,
           bool programBinaryCacheEnabled,
           EGLenum contextPriority,
+          bool hasRobustAccess,
           bool hasProtectedContent);
     ~State();
 
@@ -112,6 +113,7 @@ class State : angle::NonCopyable
     EGLenum getClientType() const { return mClientType; }
     EGLint getProfileMask() const { return mProfileMask; }
     EGLenum getContextPriority() const { return mContextPriority; }
+    bool hasRobustAccess() const { return mHasRobustAccess; }
     bool hasProtectedContent() const { return mHasProtectedContent; }
     bool isDebugContext() const { return mIsDebugContext; }
     GLint getClientMajorVersion() const { return mClientVersion.major; }
@@ -628,6 +630,11 @@ class State : angle::NonCopyable
 
     bool isRobustResourceInitEnabled() const { return mRobustResourceInit; }
 
+    bool isDrawFramebufferBindingDirty() const
+    {
+        return mDirtyBits.test(DIRTY_BIT_DRAW_FRAMEBUFFER_BINDING);
+    }
+
     // Sets the dirty bit for the program executable.
     angle::Result onProgramExecutableChange(const Context *context, Program *program);
     // Sets the dirty bit for the program pipeline executable.
@@ -1024,6 +1031,7 @@ class State : angle::NonCopyable
     EGLenum mClientType;
     EGLint mProfileMask;
     EGLenum mContextPriority;
+    bool mHasRobustAccess;
     bool mHasProtectedContent;
     bool mIsDebugContext;
     Version mClientVersion;

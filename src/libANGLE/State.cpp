@@ -343,11 +343,13 @@ State::State(const State *shareContextState,
              bool robustResourceInit,
              bool programBinaryCacheEnabled,
              EGLenum contextPriority,
+             bool hasRobustAccess,
              bool hasProtectedContent)
     : mID({gIDCounter++}),
       mClientType(clientType),
       mProfileMask(profileMask),
       mContextPriority(contextPriority),
+      mHasRobustAccess(hasRobustAccess),
       mHasProtectedContent(hasProtectedContent),
       mIsDebugContext(debug),
       mClientVersion(clientVersion),
@@ -514,6 +516,12 @@ void State::initialize(Context *context)
 
         mAtomicCounterBuffers.resize(mCaps.maxAtomicCounterBufferBindings);
         mShaderStorageBuffers.resize(mCaps.maxShaderStorageBufferBindings);
+    }
+    if (clientVersion >= Version(3, 1) ||
+        (mExtensions.shaderPixelLocalStorageANGLE &&
+         ShPixelLocalStorageTypeUsesImages(
+             context->getImplementation()->getNativePixelLocalStorageType())))
+    {
         mImageUnits.resize(mCaps.maxImageUnits);
     }
     if (clientVersion >= Version(3, 2) || mExtensions.textureCubeMapArrayAny())

@@ -660,6 +660,7 @@
         ],
         'args': [
           '--test-timeout=300',
+          '--batch-size=10',
         ],
         'linux_args': [
           '--no-xvfb',
@@ -676,6 +677,7 @@
         ],
         'args': [
           '--test-timeout=300',
+          '--batch-size=10',
           '--gtest_filter=*Vulkan*',
         ],
         'linux_args': [
@@ -688,9 +690,13 @@
     # Actually uploads results to the perf dashboard
     'angle_perf_isolated_scripts': {
       'angle_perftests': {
+        'android_args': {
+          '--trial-time=10',
+        },
         'args': [
           '--log=debug',
           '--show-test-stdout',
+          '--split-shard-samples',
         ],
         'merge': {
           'script': '//scripts/process_angle_perf_results.py',
@@ -699,7 +705,7 @@
           'shards': 30,
         },
         'swarming': {
-          'shards': 20,
+          'shards': 10,
         },
       },
     },
@@ -1112,7 +1118,6 @@
     'win10_intel_gtests': [
       'angle_deqp_gles2_d3d11_gtests',
       'angle_end2end_gtests',
-      'angle_gles1_conformance_gtests',
       'angle_unit_gtests',
       'angle_white_box_gtests',
     ],

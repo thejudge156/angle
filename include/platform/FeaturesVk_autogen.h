@@ -760,6 +760,27 @@ struct FeaturesVk : FeatureSetBase
         "supports compute shader transcode etc format to bc format",
         &members,
     };
+
+    FeatureInfo supportsGraphicsPipelineLibrary = {
+        "supportsGraphicsPipelineLibrary", FeatureCategory::VulkanFeatures,
+        "VkDevice supports the VK_EXT_graphics_pipeline_library extension", &members,
+        "https://anglebug.com/7369"};
+
+    FeatureInfo supportsPipelineProtectedAccess = {
+        "supportsPipelineProtectedAccess", FeatureCategory::VulkanFeatures,
+        "VkDevice supports the VK_EXT_pipeline_protected_access extension", &members,
+        "https://anglebug.com/7714"};
+
+    FeatureInfo preferSubmitOnAnySamplesPassedQueryEnd = {
+        "preferSubmitOnAnySamplesPassedQueryEnd", FeatureCategory::VulkanWorkarounds,
+        "Submit commands to driver when last GL_ANY_SAMPLES_PASSED query is made for performance "
+        "improvements.",
+        &members, "https://issuetracker.google.com/250706693"};
+
+    FeatureInfo forceWaitForSubmissionToCompleteForQueryResult = {
+        "forceWaitForSubmissionToCompleteForQueryResult", FeatureCategory::VulkanWorkarounds,
+        "Force wait for submission to complete before calling getQueryResult(wait).", &members,
+        "https://issuetracker.google.com/253522366"};
 };
 
 inline FeaturesVk::FeaturesVk()  = default;
