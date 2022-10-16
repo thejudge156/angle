@@ -2976,6 +2976,12 @@ void GL_APIENTRY glVertexAttribDivisorANGLE(GLuint index, GLuint divisor)
     return GL_VertexAttribDivisorANGLE(index, divisor);
 }
 
+// GL_ANGLE_logic_op
+void GL_APIENTRY glLogicOpANGLE(GLenum opcode)
+{
+    return GL_LogicOpANGLE(opcode);
+}
+
 // GL_ANGLE_memory_object_flags
 void GL_APIENTRY glTexStorageMemFlags2DANGLE(GLenum target,
                                              GLsizei levels,
@@ -5206,6 +5212,8 @@ void GL_APIENTRY glEGLImageTargetTexture2DOES(GLenum target, GLeglImageOES image
 // GL_OES_EGL_image_external_essl3
 
 // GL_OES_compressed_ETC1_RGB8_texture
+
+// GL_OES_compressed_paletted_texture
 
 // GL_OES_copy_image
 void GL_APIENTRY glCopyImageSubDataOES(GLuint srcName,

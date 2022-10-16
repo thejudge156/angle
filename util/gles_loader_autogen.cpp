@@ -486,6 +486,7 @@ ANGLE_UTIL_EXPORT PFNGLGETTEXLEVELPARAMETERIVANGLEPROC l_glGetTexLevelParameteri
 ANGLE_UTIL_EXPORT PFNGLDRAWARRAYSINSTANCEDANGLEPROC l_glDrawArraysInstancedANGLE;
 ANGLE_UTIL_EXPORT PFNGLDRAWELEMENTSINSTANCEDANGLEPROC l_glDrawElementsInstancedANGLE;
 ANGLE_UTIL_EXPORT PFNGLVERTEXATTRIBDIVISORANGLEPROC l_glVertexAttribDivisorANGLE;
+ANGLE_UTIL_EXPORT PFNGLLOGICOPANGLEPROC l_glLogicOpANGLE;
 ANGLE_UTIL_EXPORT PFNGLTEXSTORAGEMEMFLAGS2DANGLEPROC l_glTexStorageMemFlags2DANGLE;
 ANGLE_UTIL_EXPORT PFNGLTEXSTORAGEMEMFLAGS2DMULTISAMPLEANGLEPROC
     l_glTexStorageMemFlags2DMultisampleANGLE;
@@ -850,9 +851,7 @@ ANGLE_UTIL_EXPORT PFNGLTEXGENIVOESPROC l_glTexGenivOES;
 ANGLE_UTIL_EXPORT PFNGLTEXGENXOESPROC l_glTexGenxOES;
 ANGLE_UTIL_EXPORT PFNGLTEXGENXVOESPROC l_glTexGenxvOES;
 
-namespace angle
-{
-void LoadGLES(LoadProc loadProc)
+void LoadUtilGLES(LoadProc loadProc)
 {
     l_glAlphaFunc       = reinterpret_cast<PFNGLALPHAFUNCPROC>(loadProc("glAlphaFunc"));
     l_glClipPlanef      = reinterpret_cast<PFNGLCLIPPLANEFPROC>(loadProc("glClipPlanef"));
@@ -1545,6 +1544,7 @@ void LoadGLES(LoadProc loadProc)
         loadProc("glDrawElementsInstancedANGLE"));
     l_glVertexAttribDivisorANGLE =
         reinterpret_cast<PFNGLVERTEXATTRIBDIVISORANGLEPROC>(loadProc("glVertexAttribDivisorANGLE"));
+    l_glLogicOpANGLE = reinterpret_cast<PFNGLLOGICOPANGLEPROC>(loadProc("glLogicOpANGLE"));
     l_glTexStorageMemFlags2DANGLE = reinterpret_cast<PFNGLTEXSTORAGEMEMFLAGS2DANGLEPROC>(
         loadProc("glTexStorageMemFlags2DANGLE"));
     l_glTexStorageMemFlags2DMultisampleANGLE =
@@ -2210,4 +2210,3 @@ void LoadGLES(LoadProc loadProc)
     l_glTexGenxOES      = reinterpret_cast<PFNGLTEXGENXOESPROC>(loadProc("glTexGenxOES"));
     l_glTexGenxvOES     = reinterpret_cast<PFNGLTEXGENXVOESPROC>(loadProc("glTexGenxvOES"));
 }
-}  // namespace angle

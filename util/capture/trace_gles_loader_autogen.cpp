@@ -489,6 +489,7 @@ ANGLE_TRACE_LOADER_EXPORT PFNGLGETTEXLEVELPARAMETERIVANGLEPROC t_glGetTexLevelPa
 ANGLE_TRACE_LOADER_EXPORT PFNGLDRAWARRAYSINSTANCEDANGLEPROC t_glDrawArraysInstancedANGLE;
 ANGLE_TRACE_LOADER_EXPORT PFNGLDRAWELEMENTSINSTANCEDANGLEPROC t_glDrawElementsInstancedANGLE;
 ANGLE_TRACE_LOADER_EXPORT PFNGLVERTEXATTRIBDIVISORANGLEPROC t_glVertexAttribDivisorANGLE;
+ANGLE_TRACE_LOADER_EXPORT PFNGLLOGICOPANGLEPROC t_glLogicOpANGLE;
 ANGLE_TRACE_LOADER_EXPORT PFNGLTEXSTORAGEMEMFLAGS2DANGLEPROC t_glTexStorageMemFlags2DANGLE;
 ANGLE_TRACE_LOADER_EXPORT PFNGLTEXSTORAGEMEMFLAGS2DMULTISAMPLEANGLEPROC
     t_glTexStorageMemFlags2DMultisampleANGLE;
@@ -881,9 +882,7 @@ ANGLE_TRACE_LOADER_EXPORT PFNGLTEXGENIVOESPROC t_glTexGenivOES;
 ANGLE_TRACE_LOADER_EXPORT PFNGLTEXGENXOESPROC t_glTexGenxOES;
 ANGLE_TRACE_LOADER_EXPORT PFNGLTEXGENXVOESPROC t_glTexGenxvOES;
 
-namespace trace_angle
-{
-void LoadGLES(LoadProc loadProc)
+void LoadTraceGLES(LoadProc loadProc)
 {
     t_glAlphaFunc       = reinterpret_cast<PFNGLALPHAFUNCPROC>(loadProc("glAlphaFunc"));
     t_glClipPlanef      = reinterpret_cast<PFNGLCLIPPLANEFPROC>(loadProc("glClipPlanef"));
@@ -1576,6 +1575,7 @@ void LoadGLES(LoadProc loadProc)
         loadProc("glDrawElementsInstancedANGLE"));
     t_glVertexAttribDivisorANGLE =
         reinterpret_cast<PFNGLVERTEXATTRIBDIVISORANGLEPROC>(loadProc("glVertexAttribDivisorANGLE"));
+    t_glLogicOpANGLE = reinterpret_cast<PFNGLLOGICOPANGLEPROC>(loadProc("glLogicOpANGLE"));
     t_glTexStorageMemFlags2DANGLE = reinterpret_cast<PFNGLTEXSTORAGEMEMFLAGS2DANGLEPROC>(
         loadProc("glTexStorageMemFlags2DANGLE"));
     t_glTexStorageMemFlags2DMultisampleANGLE =
@@ -2241,4 +2241,3 @@ void LoadGLES(LoadProc loadProc)
     t_glTexGenxOES      = reinterpret_cast<PFNGLTEXGENXOESPROC>(loadProc("glTexGenxOES"));
     t_glTexGenxvOES     = reinterpret_cast<PFNGLTEXGENXVOESPROC>(loadProc("glTexGenxvOES"));
 }
-}  // namespace trace_angle

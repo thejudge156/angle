@@ -490,6 +490,7 @@
 #define glDrawArraysInstancedANGLE l_glDrawArraysInstancedANGLE
 #define glDrawElementsInstancedANGLE l_glDrawElementsInstancedANGLE
 #define glVertexAttribDivisorANGLE l_glVertexAttribDivisorANGLE
+#define glLogicOpANGLE l_glLogicOpANGLE
 #define glTexStorageMemFlags2DANGLE l_glTexStorageMemFlags2DANGLE
 #define glTexStorageMemFlags2DMultisampleANGLE l_glTexStorageMemFlags2DMultisampleANGLE
 #define glTexStorageMemFlags3DANGLE l_glTexStorageMemFlags3DANGLE
@@ -1312,6 +1313,7 @@ ANGLE_UTIL_EXPORT extern PFNGLGETTEXLEVELPARAMETERIVANGLEPROC l_glGetTexLevelPar
 ANGLE_UTIL_EXPORT extern PFNGLDRAWARRAYSINSTANCEDANGLEPROC l_glDrawArraysInstancedANGLE;
 ANGLE_UTIL_EXPORT extern PFNGLDRAWELEMENTSINSTANCEDANGLEPROC l_glDrawElementsInstancedANGLE;
 ANGLE_UTIL_EXPORT extern PFNGLVERTEXATTRIBDIVISORANGLEPROC l_glVertexAttribDivisorANGLE;
+ANGLE_UTIL_EXPORT extern PFNGLLOGICOPANGLEPROC l_glLogicOpANGLE;
 ANGLE_UTIL_EXPORT extern PFNGLTEXSTORAGEMEMFLAGS2DANGLEPROC l_glTexStorageMemFlags2DANGLE;
 ANGLE_UTIL_EXPORT extern PFNGLTEXSTORAGEMEMFLAGS2DMULTISAMPLEANGLEPROC
     l_glTexStorageMemFlags2DMultisampleANGLE;
@@ -1693,11 +1695,8 @@ ANGLE_UTIL_EXPORT extern PFNGLTEXGENIVOESPROC l_glTexGenivOES;
 ANGLE_UTIL_EXPORT extern PFNGLTEXGENXOESPROC l_glTexGenxOES;
 ANGLE_UTIL_EXPORT extern PFNGLTEXGENXVOESPROC l_glTexGenxvOES;
 
-namespace angle
-{
 using GenericProc = void (*)();
 using LoadProc    = GenericProc(KHRONOS_APIENTRY *)(const char *);
-ANGLE_UTIL_EXPORT void LoadGLES(LoadProc loadProc);
-}  // namespace angle
+ANGLE_UTIL_EXPORT void LoadUtilGLES(LoadProc loadProc);
 
 #endif  // UTIL_GLES_LOADER_AUTOGEN_H_

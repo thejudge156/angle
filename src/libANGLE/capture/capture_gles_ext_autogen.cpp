@@ -19,7 +19,6 @@ using namespace angle;
 
 namespace gl
 {
-
 CallCapture CaptureBeginPerfMonitorAMD(const State &glState, bool isCallValid, GLuint monitor)
 {
     ParamBuffer paramBuffer;
@@ -1018,6 +1017,17 @@ CallCapture CaptureVertexAttribDivisorANGLE(const State &glState,
     paramBuffer.addValueParam("divisor", ParamType::TGLuint, divisor);
 
     return CallCapture(angle::EntryPoint::GLVertexAttribDivisorANGLE, std::move(paramBuffer));
+}
+
+CallCapture CaptureLogicOpANGLE(const State &glState,
+                                bool isCallValid,
+                                LogicalOperation opcodePacked)
+{
+    ParamBuffer paramBuffer;
+
+    paramBuffer.addValueParam("opcodePacked", ParamType::TLogicalOperation, opcodePacked);
+
+    return CallCapture(angle::EntryPoint::GLLogicOpANGLE, std::move(paramBuffer));
 }
 
 CallCapture CaptureTexStorageMemFlags2DANGLE(const State &glState,

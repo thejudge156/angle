@@ -5,7 +5,6 @@
     "gtest_tests": [
       {
         "args": [
-          "angle_deqp_egl_tests",
           "--use-angle=gles",
           "-v",
           "--shard-timeout=500"
@@ -34,7 +33,6 @@
       },
       {
         "args": [
-          "angle_deqp_egl_tests",
           "--use-angle=vulkan",
           "-v",
           "--shard-timeout=500"
@@ -64,7 +62,6 @@
       },
       {
         "args": [
-          "angle_deqp_gles2_tests",
           "--use-angle=gles",
           "-v",
           "--shard-timeout=500"
@@ -94,7 +91,6 @@
       },
       {
         "args": [
-          "angle_deqp_gles2_tests",
           "--use-angle=vulkan",
           "-v",
           "--shard-timeout=500"
@@ -124,7 +120,6 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_tests",
           "--use-angle=vulkan",
           "-v",
           "--shard-timeout=500"
@@ -154,7 +149,6 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_tests",
           "--use-angle=gles",
           "-v",
           "--shard-timeout=500"
@@ -184,7 +178,6 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_tests",
           "--use-angle=vulkan",
           "-v",
           "--shard-timeout=500"
@@ -214,7 +207,6 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles2_tests",
           "--use-angle=vulkan",
           "-v",
           "--shard-timeout=500"
@@ -243,7 +235,6 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles31_tests",
           "--use-angle=vulkan",
           "-v",
           "--shard-timeout=500"
@@ -272,7 +263,6 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles32_tests",
           "--use-angle=vulkan",
           "-v",
           "--shard-timeout=500"
@@ -301,7 +291,6 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles3_tests",
           "--use-angle=vulkan",
           "-v",
           "--shard-timeout=500"
@@ -330,7 +319,6 @@
       },
       {
         "args": [
-          "angle_end2end_tests",
           "--gtest_filter=-*Vulkan_SwiftShader*",
           "--shard-timeout=180",
           "-v",
@@ -361,7 +349,36 @@
       },
       {
         "args": [
-          "angle_unittests",
+          "--test-timeout=300",
+          "--batch-size=10",
+          "--gtest_filter=*Vulkan*",
+          "--shard-timeout=600",
+          "-v"
+        ],
+        "merge": {
+          "args": [],
+          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
+        },
+        "swarming": {
+          "can_use_on_swarming_builders": true,
+          "containment_type": "AUTO",
+          "dimension_sets": [
+            {
+              "device_os": "R",
+              "device_os_type": "userdebug",
+              "device_type": "flame",
+              "os": "Android",
+              "pool": "chromium.tests.gpu"
+            }
+          ],
+          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
+        },
+        "test": "angle_gles1_conformance_tests",
+        "test_id_prefix": "ninja://src/tests:angle_gles1_conformance_tests/",
+        "use_isolated_scripts_api": true
+      },
+      {
+        "args": [
           "-v"
         ],
         "merge": {
@@ -461,7 +478,9 @@
       {
         "args": [
           "--log=debug",
-          "--show-test-stdout"
+          "--show-test-stdout",
+          "--split-shard-samples",
+          "--trial-time=10"
         ],
         "isolate_name": "angle_perftests",
         "merge": {
@@ -480,6 +499,8 @@
               "pool": "chromium.tests.gpu"
             }
           ],
+          "hard_timeout": 7200,
+          "io_timeout": 300,
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
           "shards": 30
         },
@@ -491,7 +512,6 @@
     "gtest_tests": [
       {
         "args": [
-          "angle_deqp_egl_tests",
           "--use-angle=vulkan",
           "-v",
           "--shard-timeout=500"
@@ -522,7 +542,6 @@
       },
       {
         "args": [
-          "angle_deqp_gles2_tests",
           "--use-angle=vulkan",
           "-v",
           "--shard-timeout=500"
@@ -553,7 +572,6 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_tests",
           "--use-angle=vulkan",
           "-v",
           "--shard-timeout=500"
@@ -584,7 +602,6 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_tests",
           "--use-angle=vulkan",
           "-v",
           "--shard-timeout=500"
@@ -615,7 +632,6 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles2_tests",
           "--use-angle=vulkan",
           "-v",
           "--shard-timeout=500"
@@ -645,7 +661,6 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles31_tests",
           "--use-angle=vulkan",
           "-v",
           "--shard-timeout=500"
@@ -675,7 +690,6 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles32_tests",
           "--use-angle=vulkan",
           "-v",
           "--shard-timeout=500"
@@ -705,7 +719,6 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles3_tests",
           "--use-angle=vulkan",
           "-v",
           "--shard-timeout=500"
@@ -735,7 +748,6 @@
       },
       {
         "args": [
-          "angle_end2end_tests",
           "--gtest_filter=*Vulkan*:-*Vulkan_SwiftShader*",
           "--shard-timeout=300",
           "-v",
@@ -767,7 +779,6 @@
       },
       {
         "args": [
-          "angle_unittests",
           "-v"
         ],
         "merge": {
@@ -839,9 +850,8 @@
     "gtest_tests": [
       {
         "args": [
-          "angle_deqp_gles2_tests",
           "--use-angle=gl",
-          "--bot-mode"
+          "--no-xvfb"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -865,10 +875,9 @@
       },
       {
         "args": [
-          "angle_end2end_tests",
           "--gtest_filter=-*Vulkan_SwiftShader*",
-          "--bot-mode",
-          "--max-processes=4"
+          "--max-processes=4",
+          "--no-xvfb"
         ],
         "merge": {
           "args": [],
@@ -893,9 +902,9 @@
       },
       {
         "args": [
-          "angle_gles1_conformance_tests",
           "--test-timeout=300",
-          "--bot-mode"
+          "--batch-size=10",
+          "--no-xvfb"
         ],
         "merge": {
           "args": [],
@@ -918,9 +927,6 @@
         "use_isolated_scripts_api": true
       },
       {
-        "args": [
-          "angle_unittests"
-        ],
         "merge": {
           "args": [],
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
@@ -943,8 +949,7 @@
       },
       {
         "args": [
-          "angle_white_box_tests",
-          "--bot-mode"
+          "--no-xvfb"
         ],
         "merge": {
           "args": [],
@@ -1035,7 +1040,8 @@
       {
         "args": [
           "--log=debug",
-          "--show-test-stdout"
+          "--show-test-stdout",
+          "--split-shard-samples"
         ],
         "isolate_name": "angle_perftests",
         "merge": {
@@ -1052,8 +1058,10 @@
               "pool": "chromium.tests.gpu"
             }
           ],
+          "hard_timeout": 7200,
+          "io_timeout": 300,
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 20
+          "shards": 10
         },
         "test_id_prefix": "ninja://src/tests:angle_perftests/"
       }
@@ -1063,10 +1071,9 @@
     "gtest_tests": [
       {
         "args": [
-          "angle_deqp_egl_tests",
           "--use-angle=gl",
-          "--bot-mode",
-          "--max-processes=1"
+          "--max-processes=1",
+          "--no-xvfb"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -1090,9 +1097,8 @@
       },
       {
         "args": [
-          "angle_deqp_egl_tests",
           "--use-angle=vulkan",
-          "--bot-mode"
+          "--no-xvfb"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -1117,9 +1123,8 @@
       },
       {
         "args": [
-          "angle_deqp_gles2_tests",
           "--use-angle=gl",
-          "--bot-mode"
+          "--no-xvfb"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -1143,9 +1148,8 @@
       },
       {
         "args": [
-          "angle_deqp_gles2_tests",
           "--use-angle=vulkan",
-          "--bot-mode"
+          "--no-xvfb"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -1169,9 +1173,8 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_rotate180_tests",
           "--use-angle=vulkan",
-          "--bot-mode"
+          "--no-xvfb"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -1195,9 +1198,8 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_rotate270_tests",
           "--use-angle=vulkan",
-          "--bot-mode"
+          "--no-xvfb"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -1221,9 +1223,8 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_rotate90_tests",
           "--use-angle=vulkan",
-          "--bot-mode"
+          "--no-xvfb"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -1247,9 +1248,8 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_tests",
           "--use-angle=gl",
-          "--bot-mode"
+          "--no-xvfb"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -1274,9 +1274,8 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_tests",
           "--use-angle=vulkan",
-          "--bot-mode"
+          "--no-xvfb"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -1301,9 +1300,8 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_rotate180_tests",
           "--use-angle=vulkan",
-          "--bot-mode"
+          "--no-xvfb"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -1328,9 +1326,8 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_rotate270_tests",
           "--use-angle=vulkan",
-          "--bot-mode"
+          "--no-xvfb"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -1355,9 +1352,8 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_rotate90_tests",
           "--use-angle=vulkan",
-          "--bot-mode"
+          "--no-xvfb"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -1382,9 +1378,8 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_tests",
           "--use-angle=gl",
-          "--bot-mode"
+          "--no-xvfb"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -1409,9 +1404,8 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_tests",
           "--use-angle=vulkan",
-          "--bot-mode"
+          "--no-xvfb"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -1436,9 +1430,8 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles2_tests",
           "--use-angle=vulkan",
-          "--bot-mode"
+          "--no-xvfb"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -1462,9 +1455,8 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles31_tests",
           "--use-angle=vulkan",
-          "--bot-mode"
+          "--no-xvfb"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -1488,9 +1480,8 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles32_tests",
           "--use-angle=vulkan",
-          "--bot-mode"
+          "--no-xvfb"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -1514,9 +1505,8 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles3_tests",
           "--use-angle=vulkan",
-          "--bot-mode"
+          "--no-xvfb"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -1540,10 +1530,9 @@
       },
       {
         "args": [
-          "angle_end2end_tests",
           "--gtest_filter=-*Vulkan_SwiftShader*",
-          "--bot-mode",
-          "--max-processes=4"
+          "--max-processes=4",
+          "--no-xvfb"
         ],
         "merge": {
           "args": [],
@@ -1568,9 +1557,9 @@
       },
       {
         "args": [
-          "angle_gles1_conformance_tests",
           "--test-timeout=300",
-          "--bot-mode"
+          "--batch-size=10",
+          "--no-xvfb"
         ],
         "merge": {
           "args": [],
@@ -1593,9 +1582,6 @@
         "use_isolated_scripts_api": true
       },
       {
-        "args": [
-          "angle_unittests"
-        ],
         "merge": {
           "args": [],
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
@@ -1618,8 +1604,7 @@
       },
       {
         "args": [
-          "angle_white_box_tests",
-          "--bot-mode"
+          "--no-xvfb"
         ],
         "merge": {
           "args": [],
@@ -1710,7 +1695,8 @@
       {
         "args": [
           "--log=debug",
-          "--show-test-stdout"
+          "--show-test-stdout",
+          "--split-shard-samples"
         ],
         "isolate_name": "angle_perftests",
         "merge": {
@@ -1727,8 +1713,10 @@
               "pool": "chromium.tests.gpu"
             }
           ],
+          "hard_timeout": 7200,
+          "io_timeout": 300,
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 20
+          "shards": 10
         },
         "test_id_prefix": "ninja://src/tests:angle_perftests/"
       }
@@ -1738,10 +1726,7 @@
     "gtest_tests": [
       {
         "args": [
-          "angle_deqp_egl_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -1768,10 +1753,7 @@
       },
       {
         "args": [
-          "angle_deqp_gl46_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -1798,10 +1780,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles2_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -1828,10 +1807,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_rotate180_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -1858,10 +1834,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_rotate270_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -1888,10 +1861,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_rotate90_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -1918,10 +1888,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -1949,10 +1916,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_rotate180_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -1979,10 +1943,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_rotate270_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -2009,10 +1970,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_rotate90_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -2039,10 +1997,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -2070,10 +2025,7 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles2_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -2100,10 +2052,7 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles31_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -2130,10 +2079,7 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles3_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -2160,10 +2106,7 @@
       },
       {
         "args": [
-          "angle_end2end_tests",
-          "--bot-mode",
-          "--gtest_filter=*Vulkan_SwiftShader*",
-          "--xvfb"
+          "--gtest_filter=*Vulkan_SwiftShader*"
         ],
         "merge": {
           "args": [],
@@ -2190,10 +2133,7 @@
       },
       {
         "args": [
-          "angle_white_box_tests",
-          "--bot-mode",
-          "--gtest_filter=*Vulkan_SwiftShader*",
-          "--xvfb"
+          "--gtest_filter=*Vulkan_SwiftShader*"
         ],
         "merge": {
           "args": [],
@@ -2264,10 +2204,7 @@
     "gtest_tests": [
       {
         "args": [
-          "angle_deqp_egl_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -2294,10 +2231,7 @@
       },
       {
         "args": [
-          "angle_deqp_gl46_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -2324,10 +2258,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles2_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -2354,10 +2285,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_rotate180_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -2384,10 +2312,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_rotate270_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -2414,10 +2339,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_rotate90_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -2444,10 +2366,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -2475,10 +2394,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_rotate180_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -2505,10 +2421,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_rotate270_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -2535,10 +2448,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_rotate90_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -2565,10 +2475,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -2596,10 +2503,7 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles2_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -2626,10 +2530,7 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles31_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -2656,10 +2557,7 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles3_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -2686,10 +2584,7 @@
       },
       {
         "args": [
-          "angle_end2end_tests",
-          "--bot-mode",
-          "--gtest_filter=*Vulkan_SwiftShader*",
-          "--xvfb"
+          "--gtest_filter=*Vulkan_SwiftShader*"
         ],
         "merge": {
           "args": [],
@@ -2716,10 +2611,7 @@
       },
       {
         "args": [
-          "angle_white_box_tests",
-          "--bot-mode",
-          "--gtest_filter=*Vulkan_SwiftShader*",
-          "--xvfb"
+          "--gtest_filter=*Vulkan_SwiftShader*"
         ],
         "merge": {
           "args": [],
@@ -2750,12 +2642,9 @@
     "gtest_tests": [
       {
         "args": [
-          "angle_deqp_egl_tests",
           "--use-angle=swiftshader",
-          "--bot-mode",
           "--batch-timeout=600",
-          "--flaky-retries=2",
-          "--xvfb"
+          "--flaky-retries=2"
         ],
         "merge": {
           "args": [],
@@ -2782,10 +2671,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles2_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -2813,10 +2699,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -2844,10 +2727,7 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles2_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -2874,10 +2754,7 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles31_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -2904,10 +2781,7 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles3_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -2934,10 +2808,7 @@
       },
       {
         "args": [
-          "angle_end2end_tests",
-          "--bot-mode",
-          "--gtest_filter=*Vulkan_SwiftShader*",
-          "--xvfb"
+          "--gtest_filter=*Vulkan_SwiftShader*"
         ],
         "merge": {
           "args": [],
@@ -2964,10 +2835,7 @@
       },
       {
         "args": [
-          "angle_white_box_tests",
-          "--bot-mode",
-          "--gtest_filter=*Vulkan_SwiftShader*",
-          "--xvfb"
+          "--gtest_filter=*Vulkan_SwiftShader*"
         ],
         "merge": {
           "args": [],
@@ -2998,10 +2866,7 @@
     "gtest_tests": [
       {
         "args": [
-          "angle_deqp_egl_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -3028,10 +2893,7 @@
       },
       {
         "args": [
-          "angle_deqp_gl46_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -3058,10 +2920,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles2_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -3088,10 +2947,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_rotate180_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -3118,10 +2974,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_rotate270_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -3148,10 +3001,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_rotate90_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -3178,10 +3028,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -3209,10 +3056,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_rotate180_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -3239,10 +3083,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_rotate270_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -3269,10 +3110,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_rotate90_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -3299,10 +3137,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -3330,10 +3165,7 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles2_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -3360,10 +3192,7 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles31_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -3390,10 +3219,7 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles3_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode",
-          "--xvfb"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -3420,10 +3246,7 @@
       },
       {
         "args": [
-          "angle_end2end_tests",
-          "--bot-mode",
-          "--gtest_filter=*Vulkan_SwiftShader*",
-          "--xvfb"
+          "--gtest_filter=*Vulkan_SwiftShader*"
         ],
         "merge": {
           "args": [],
@@ -3450,10 +3273,7 @@
       },
       {
         "args": [
-          "angle_white_box_tests",
-          "--bot-mode",
-          "--gtest_filter=*Vulkan_SwiftShader*",
-          "--xvfb"
+          "--gtest_filter=*Vulkan_SwiftShader*"
         ],
         "merge": {
           "args": [],
@@ -3484,9 +3304,7 @@
     "gtest_tests": [
       {
         "args": [
-          "angle_deqp_egl_tests",
           "--use-angle=gl",
-          "--bot-mode",
           "--max-processes=1"
         ],
         "merge": {
@@ -3514,9 +3332,7 @@
       },
       {
         "args": [
-          "angle_deqp_egl_tests",
-          "--use-angle=metal",
-          "--bot-mode"
+          "--use-angle=metal"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -3543,9 +3359,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles2_tests",
           "--use-angle=gl",
-          "--bot-mode",
           "--flaky-retries=2"
         ],
         "merge": {
@@ -3573,9 +3387,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles2_tests",
-          "--use-angle=metal",
-          "--bot-mode"
+          "--use-angle=metal"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -3602,9 +3414,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_tests",
           "--use-angle=gl",
-          "--bot-mode",
           "--flaky-retries=2"
         ],
         "merge": {
@@ -3633,10 +3443,8 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_tests",
           "--use-angle=metal",
-          "--flaky-retries=2",
-          "--bot-mode"
+          "--flaky-retries=2"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -3664,9 +3472,7 @@
       },
       {
         "args": [
-          "angle_end2end_tests",
           "--gtest_filter=-*Vulkan_SwiftShader*",
-          "--bot-mode",
           "--flaky-retries=2"
         ],
         "merge": {
@@ -3694,9 +3500,6 @@
         "use_isolated_scripts_api": true
       },
       {
-        "args": [
-          "angle_unittests"
-        ],
         "merge": {
           "args": [],
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
@@ -3722,239 +3525,12 @@
       }
     ]
   },
-  "mac-exp-intel": {
-    "gtest_tests": [
-      {
-        "args": [
-          "angle_deqp_egl_tests",
-          "--use-angle=gl",
-          "--bot-mode",
-          "--max-processes=1"
-        ],
-        "merge": {
-          "script": "//scripts/angle_deqp_test_merge.py"
-        },
-        "name": "angle_deqp_egl_gl_tests",
-        "swarming": {
-          "can_use_on_swarming_builders": true,
-          "containment_type": "AUTO",
-          "dimension_sets": [
-            {
-              "cpu": "x86-64",
-              "display_attached": "1",
-              "gpu": "8086:3e9b",
-              "os": "Mac-12.5.1"
-            }
-          ],
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
-        },
-        "test": "angle_deqp_egl_tests",
-        "test_id_prefix": "ninja://src/tests:angle_deqp_egl_tests/",
-        "use_isolated_scripts_api": true
-      },
-      {
-        "args": [
-          "angle_deqp_egl_tests",
-          "--use-angle=metal",
-          "--bot-mode"
-        ],
-        "merge": {
-          "script": "//scripts/angle_deqp_test_merge.py"
-        },
-        "name": "angle_deqp_egl_metal_tests",
-        "swarming": {
-          "can_use_on_swarming_builders": true,
-          "containment_type": "AUTO",
-          "dimension_sets": [
-            {
-              "cpu": "x86-64",
-              "display_attached": "1",
-              "gpu": "8086:3e9b",
-              "os": "Mac-12.5.1"
-            }
-          ],
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
-        },
-        "test": "angle_deqp_egl_tests",
-        "test_id_prefix": "ninja://src/tests:angle_deqp_egl_tests/",
-        "use_isolated_scripts_api": true
-      },
-      {
-        "args": [
-          "angle_deqp_gles2_tests",
-          "--use-angle=gl",
-          "--bot-mode",
-          "--flaky-retries=2"
-        ],
-        "merge": {
-          "script": "//scripts/angle_deqp_test_merge.py"
-        },
-        "name": "angle_deqp_gles2_gl_tests",
-        "swarming": {
-          "can_use_on_swarming_builders": true,
-          "containment_type": "AUTO",
-          "dimension_sets": [
-            {
-              "cpu": "x86-64",
-              "display_attached": "1",
-              "gpu": "8086:3e9b",
-              "os": "Mac-12.5.1"
-            }
-          ],
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
-        },
-        "test": "angle_deqp_gles2_tests",
-        "test_id_prefix": "ninja://src/tests:angle_deqp_gles2_tests/",
-        "use_isolated_scripts_api": true
-      },
-      {
-        "args": [
-          "angle_deqp_gles2_tests",
-          "--use-angle=metal",
-          "--bot-mode"
-        ],
-        "merge": {
-          "script": "//scripts/angle_deqp_test_merge.py"
-        },
-        "name": "angle_deqp_gles2_metal_tests",
-        "swarming": {
-          "can_use_on_swarming_builders": true,
-          "containment_type": "AUTO",
-          "dimension_sets": [
-            {
-              "cpu": "x86-64",
-              "display_attached": "1",
-              "gpu": "8086:3e9b",
-              "os": "Mac-12.5.1"
-            }
-          ],
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
-        },
-        "test": "angle_deqp_gles2_tests",
-        "test_id_prefix": "ninja://src/tests:angle_deqp_gles2_tests/",
-        "use_isolated_scripts_api": true
-      },
-      {
-        "args": [
-          "angle_deqp_gles3_tests",
-          "--use-angle=gl",
-          "--bot-mode",
-          "--flaky-retries=2"
-        ],
-        "merge": {
-          "script": "//scripts/angle_deqp_test_merge.py"
-        },
-        "name": "angle_deqp_gles3_gl_tests",
-        "swarming": {
-          "can_use_on_swarming_builders": true,
-          "containment_type": "AUTO",
-          "dimension_sets": [
-            {
-              "cpu": "x86-64",
-              "display_attached": "1",
-              "gpu": "8086:3e9b",
-              "os": "Mac-12.5.1"
-            }
-          ],
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 2
-        },
-        "test": "angle_deqp_gles3_tests",
-        "test_id_prefix": "ninja://src/tests:angle_deqp_gles3_tests/",
-        "use_isolated_scripts_api": true
-      },
-      {
-        "args": [
-          "angle_deqp_gles3_tests",
-          "--use-angle=metal",
-          "--flaky-retries=2",
-          "--bot-mode"
-        ],
-        "merge": {
-          "script": "//scripts/angle_deqp_test_merge.py"
-        },
-        "name": "angle_deqp_gles3_metal_tests",
-        "swarming": {
-          "can_use_on_swarming_builders": true,
-          "containment_type": "AUTO",
-          "dimension_sets": [
-            {
-              "cpu": "x86-64",
-              "display_attached": "1",
-              "gpu": "8086:3e9b",
-              "os": "Mac-12.5.1"
-            }
-          ],
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 2
-        },
-        "test": "angle_deqp_gles3_tests",
-        "test_id_prefix": "ninja://src/tests:angle_deqp_gles3_tests/",
-        "use_isolated_scripts_api": true
-      },
-      {
-        "args": [
-          "angle_end2end_tests",
-          "--gtest_filter=-*Vulkan_SwiftShader*",
-          "--bot-mode",
-          "--flaky-retries=2"
-        ],
-        "merge": {
-          "args": [],
-          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
-        },
-        "swarming": {
-          "can_use_on_swarming_builders": true,
-          "containment_type": "AUTO",
-          "dimension_sets": [
-            {
-              "cpu": "x86-64",
-              "display_attached": "1",
-              "gpu": "8086:3e9b",
-              "os": "Mac-12.5.1"
-            }
-          ],
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 2
-        },
-        "test": "angle_end2end_tests",
-        "test_id_prefix": "ninja://src/tests:angle_end2end_tests/",
-        "use_isolated_scripts_api": true
-      },
-      {
-        "args": [
-          "angle_unittests"
-        ],
-        "merge": {
-          "args": [],
-          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
-        },
-        "swarming": {
-          "can_use_on_swarming_builders": true,
-          "containment_type": "AUTO",
-          "dimension_sets": [
-            {
-              "cpu": "x86-64",
-              "display_attached": "1",
-              "gpu": "8086:3e9b",
-              "os": "Mac-12.5.1"
-            }
-          ],
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
-        },
-        "test": "angle_unittests",
-        "test_id_prefix": "ninja://src/tests:angle_unittests/",
-        "use_isolated_scripts_api": true
-      }
-    ]
-  },
+  "mac-exp-intel": {},
   "mac-intel": {
     "gtest_tests": [
       {
         "args": [
-          "angle_deqp_egl_tests",
           "--use-angle=gl",
-          "--bot-mode",
           "--max-processes=1"
         ],
         "merge": {
@@ -3969,7 +3545,7 @@
               "cpu": "x86-64",
               "display_attached": "1",
               "gpu": "8086:3e9b",
-              "os": "Mac-12.4"
+              "os": "Mac-12.4|Mac-12.5"
             }
           ],
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -3980,9 +3556,7 @@
       },
       {
         "args": [
-          "angle_deqp_egl_tests",
-          "--use-angle=metal",
-          "--bot-mode"
+          "--use-angle=metal"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -3996,7 +3570,7 @@
               "cpu": "x86-64",
               "display_attached": "1",
               "gpu": "8086:3e9b",
-              "os": "Mac-12.4"
+              "os": "Mac-12.4|Mac-12.5"
             }
           ],
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -4007,9 +3581,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles2_tests",
           "--use-angle=gl",
-          "--bot-mode",
           "--flaky-retries=2"
         ],
         "merge": {
@@ -4024,7 +3596,7 @@
               "cpu": "x86-64",
               "display_attached": "1",
               "gpu": "8086:3e9b",
-              "os": "Mac-12.4"
+              "os": "Mac-12.4|Mac-12.5"
             }
           ],
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -4035,9 +3607,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles2_tests",
-          "--use-angle=metal",
-          "--bot-mode"
+          "--use-angle=metal"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -4051,7 +3621,7 @@
               "cpu": "x86-64",
               "display_attached": "1",
               "gpu": "8086:3e9b",
-              "os": "Mac-12.4"
+              "os": "Mac-12.4|Mac-12.5"
             }
           ],
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -4062,9 +3632,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_tests",
           "--use-angle=gl",
-          "--bot-mode",
           "--flaky-retries=2"
         ],
         "merge": {
@@ -4079,7 +3647,7 @@
               "cpu": "x86-64",
               "display_attached": "1",
               "gpu": "8086:3e9b",
-              "os": "Mac-12.4"
+              "os": "Mac-12.4|Mac-12.5"
             }
           ],
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
@@ -4091,10 +3659,8 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_tests",
           "--use-angle=metal",
-          "--flaky-retries=2",
-          "--bot-mode"
+          "--flaky-retries=2"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -4108,7 +3674,7 @@
               "cpu": "x86-64",
               "display_attached": "1",
               "gpu": "8086:3e9b",
-              "os": "Mac-12.4"
+              "os": "Mac-12.4|Mac-12.5"
             }
           ],
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
@@ -4120,9 +3686,7 @@
       },
       {
         "args": [
-          "angle_end2end_tests",
           "--gtest_filter=-*Vulkan_SwiftShader*",
-          "--bot-mode",
           "--flaky-retries=2"
         ],
         "merge": {
@@ -4137,7 +3701,7 @@
               "cpu": "x86-64",
               "display_attached": "1",
               "gpu": "8086:3e9b",
-              "os": "Mac-12.4"
+              "os": "Mac-12.4|Mac-12.5"
             }
           ],
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
@@ -4148,9 +3712,6 @@
         "use_isolated_scripts_api": true
       },
       {
-        "args": [
-          "angle_unittests"
-        ],
         "merge": {
           "args": [],
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
@@ -4163,7 +3724,7 @@
               "cpu": "x86-64",
               "display_attached": "1",
               "gpu": "8086:3e9b",
-              "os": "Mac-12.4"
+              "os": "Mac-12.4|Mac-12.5"
             }
           ],
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
@@ -4178,9 +3739,7 @@
     "gtest_tests": [
       {
         "args": [
-          "angle_end2end_tests",
           "--gtest_filter=-*Vulkan_SwiftShader*",
-          "--bot-mode",
           "--flaky-retries=2"
         ],
         "merge": {
@@ -4208,9 +3767,6 @@
         "use_isolated_scripts_api": true
       },
       {
-        "args": [
-          "angle_unittests"
-        ],
         "merge": {
           "args": [],
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
@@ -4240,9 +3796,7 @@
     "gtest_tests": [
       {
         "args": [
-          "angle_deqp_gles2_tests",
-          "--use-angle=d3d11",
-          "--bot-mode"
+          "--use-angle=d3d11"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -4266,9 +3820,7 @@
       },
       {
         "args": [
-          "angle_end2end_tests",
           "--gtest_filter=-*Vulkan_SwiftShader*",
-          "--bot-mode",
           "--max-processes=1"
         ],
         "merge": {
@@ -4293,35 +3845,6 @@
         "use_isolated_scripts_api": true
       },
       {
-        "args": [
-          "angle_gles1_conformance_tests",
-          "--test-timeout=300",
-          "--bot-mode"
-        ],
-        "merge": {
-          "args": [],
-          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
-        },
-        "swarming": {
-          "can_use_on_swarming_builders": true,
-          "containment_type": "AUTO",
-          "dimension_sets": [
-            {
-              "gpu": "8086:5912-26.20.100.8141|8086:3e92-26.20.100.8141",
-              "os": "Windows-10",
-              "pool": "chromium.tests.gpu"
-            }
-          ],
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
-        },
-        "test": "angle_gles1_conformance_tests",
-        "test_id_prefix": "ninja://src/tests:angle_gles1_conformance_tests/",
-        "use_isolated_scripts_api": true
-      },
-      {
-        "args": [
-          "angle_unittests"
-        ],
         "merge": {
           "args": [],
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
@@ -4344,8 +3867,6 @@
       },
       {
         "args": [
-          "angle_white_box_tests",
-          "--bot-mode",
           "--max-processes=1"
         ],
         "merge": {
@@ -4438,9 +3959,7 @@
     "gtest_tests": [
       {
         "args": [
-          "angle_deqp_egl_tests",
-          "--use-angle=d3d11",
-          "--bot-mode"
+          "--use-angle=d3d11"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -4464,9 +3983,7 @@
       },
       {
         "args": [
-          "angle_deqp_egl_tests",
           "--use-angle=gl",
-          "--bot-mode",
           "--max-processes=1"
         ],
         "merge": {
@@ -4491,9 +4008,7 @@
       },
       {
         "args": [
-          "angle_deqp_egl_tests",
-          "--use-angle=vulkan",
-          "--bot-mode"
+          "--use-angle=vulkan"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -4518,9 +4033,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles2_tests",
-          "--use-angle=d3d11",
-          "--bot-mode"
+          "--use-angle=d3d11"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -4544,9 +4057,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles2_tests",
-          "--use-angle=gl",
-          "--bot-mode"
+          "--use-angle=gl"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -4570,9 +4081,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles2_tests",
-          "--use-angle=vulkan",
-          "--bot-mode"
+          "--use-angle=vulkan"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -4596,9 +4105,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_rotate180_tests",
-          "--use-angle=vulkan",
-          "--bot-mode"
+          "--use-angle=vulkan"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -4622,9 +4129,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_rotate270_tests",
-          "--use-angle=vulkan",
-          "--bot-mode"
+          "--use-angle=vulkan"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -4648,9 +4153,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_rotate90_tests",
-          "--use-angle=vulkan",
-          "--bot-mode"
+          "--use-angle=vulkan"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -4674,9 +4177,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_tests",
-          "--use-angle=d3d11",
-          "--bot-mode"
+          "--use-angle=d3d11"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -4701,9 +4202,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_tests",
-          "--use-angle=gl",
-          "--bot-mode"
+          "--use-angle=gl"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -4728,9 +4227,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_tests",
-          "--use-angle=vulkan",
-          "--bot-mode"
+          "--use-angle=vulkan"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -4755,9 +4252,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_rotate180_tests",
-          "--use-angle=vulkan",
-          "--bot-mode"
+          "--use-angle=vulkan"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -4782,9 +4277,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_rotate270_tests",
-          "--use-angle=vulkan",
-          "--bot-mode"
+          "--use-angle=vulkan"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -4809,9 +4302,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_rotate90_tests",
-          "--use-angle=vulkan",
-          "--bot-mode"
+          "--use-angle=vulkan"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -4836,9 +4327,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_tests",
-          "--use-angle=d3d11",
-          "--bot-mode"
+          "--use-angle=d3d11"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -4863,9 +4352,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_tests",
-          "--use-angle=gl",
-          "--bot-mode"
+          "--use-angle=gl"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -4890,9 +4377,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_tests",
-          "--use-angle=vulkan",
-          "--bot-mode"
+          "--use-angle=vulkan"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -4917,9 +4402,7 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles2_tests",
-          "--use-angle=vulkan",
-          "--bot-mode"
+          "--use-angle=vulkan"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -4943,9 +4426,7 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles31_tests",
-          "--use-angle=vulkan",
-          "--bot-mode"
+          "--use-angle=vulkan"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -4969,9 +4450,7 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles32_tests",
-          "--use-angle=vulkan",
-          "--bot-mode"
+          "--use-angle=vulkan"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -4995,9 +4474,7 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles3_tests",
-          "--use-angle=vulkan",
-          "--bot-mode"
+          "--use-angle=vulkan"
         ],
         "merge": {
           "script": "//scripts/angle_deqp_test_merge.py"
@@ -5021,9 +4498,7 @@
       },
       {
         "args": [
-          "angle_end2end_tests",
-          "--gtest_filter=-*Vulkan_SwiftShader*",
-          "--bot-mode"
+          "--gtest_filter=-*Vulkan_SwiftShader*"
         ],
         "merge": {
           "args": [],
@@ -5048,9 +4523,8 @@
       },
       {
         "args": [
-          "angle_gles1_conformance_tests",
           "--test-timeout=300",
-          "--bot-mode"
+          "--batch-size=10"
         ],
         "merge": {
           "args": [],
@@ -5073,9 +4547,6 @@
         "use_isolated_scripts_api": true
       },
       {
-        "args": [
-          "angle_unittests"
-        ],
         "merge": {
           "args": [],
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
@@ -5097,10 +4568,6 @@
         "use_isolated_scripts_api": true
       },
       {
-        "args": [
-          "angle_white_box_tests",
-          "--bot-mode"
-        ],
         "merge": {
           "args": [],
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
@@ -5190,7 +4657,8 @@
       {
         "args": [
           "--log=debug",
-          "--show-test-stdout"
+          "--show-test-stdout",
+          "--split-shard-samples"
         ],
         "isolate_name": "angle_perftests",
         "merge": {
@@ -5207,8 +4675,10 @@
               "pool": "chromium.tests.gpu"
             }
           ],
+          "hard_timeout": 7200,
+          "io_timeout": 300,
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 20
+          "shards": 10
         },
         "test_id_prefix": "ninja://src/tests:angle_perftests/"
       }
@@ -5218,9 +4688,7 @@
     "gtest_tests": [
       {
         "args": [
-          "angle_deqp_egl_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -5247,9 +4715,7 @@
       },
       {
         "args": [
-          "angle_deqp_gl46_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -5276,9 +4742,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles2_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -5305,9 +4769,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_rotate180_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -5334,9 +4796,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_rotate270_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -5363,9 +4823,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_rotate90_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -5392,9 +4850,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -5422,9 +4878,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_rotate180_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -5451,9 +4905,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_rotate270_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -5480,9 +4932,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_rotate90_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -5509,9 +4959,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -5539,9 +4987,7 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles2_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -5568,9 +5014,7 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles31_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -5597,9 +5041,7 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles3_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -5626,8 +5068,6 @@
       },
       {
         "args": [
-          "angle_end2end_tests",
-          "--bot-mode",
           "--gtest_filter=*Vulkan_SwiftShader*"
         ],
         "merge": {
@@ -5655,8 +5095,6 @@
       },
       {
         "args": [
-          "angle_white_box_tests",
-          "--bot-mode",
           "--gtest_filter=*Vulkan_SwiftShader*"
         ],
         "merge": {
@@ -5726,8 +5164,6 @@
     "gtest_tests": [
       {
         "args": [
-          "angle_end2end_tests",
-          "--bot-mode",
           "--gtest_filter=*Vulkan_SwiftShader*"
         ],
         "merge": {
@@ -5756,8 +5192,6 @@
       },
       {
         "args": [
-          "angle_white_box_tests",
-          "--bot-mode",
           "--gtest_filter=*Vulkan_SwiftShader*"
         ],
         "merge": {
@@ -5789,9 +5223,7 @@
     "gtest_tests": [
       {
         "args": [
-          "angle_deqp_egl_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -5818,9 +5250,7 @@
       },
       {
         "args": [
-          "angle_deqp_gl46_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -5847,9 +5277,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles2_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -5876,9 +5304,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_rotate180_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -5905,9 +5331,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_rotate270_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -5934,9 +5358,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_rotate90_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -5963,9 +5385,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles31_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -5993,9 +5413,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_rotate180_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -6022,9 +5440,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_rotate270_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -6051,9 +5467,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_rotate90_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -6080,9 +5494,7 @@
       },
       {
         "args": [
-          "angle_deqp_gles3_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -6110,9 +5522,7 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles2_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -6139,9 +5549,7 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles31_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -6168,9 +5576,7 @@
       },
       {
         "args": [
-          "angle_deqp_khr_gles3_tests",
-          "--use-angle=swiftshader",
-          "--bot-mode"
+          "--use-angle=swiftshader"
         ],
         "merge": {
           "args": [],
@@ -6197,8 +5603,6 @@
       },
       {
         "args": [
-          "angle_end2end_tests",
-          "--bot-mode",
           "--gtest_filter=*Vulkan_SwiftShader*"
         ],
         "merge": {
@@ -6226,8 +5630,6 @@
       },
       {
         "args": [
-          "angle_white_box_tests",
-          "--bot-mode",
           "--gtest_filter=*Vulkan_SwiftShader*"
         ],
         "merge": {

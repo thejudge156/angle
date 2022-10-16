@@ -284,6 +284,7 @@
     /* GL_OES_compressed_ETC2_punchthroughA_sRGB8_alpha_texture */                                 \
     /* GL_OES_compressed_ETC2_sRGB8_alpha8_texture */                                              \
     /* GL_OES_compressed_ETC2_sRGB8_texture */                                                     \
+    /* GL_OES_compressed_paletted_texture */                                                       \
     /* GL_OES_copy_image */                                                                        \
     /* GL_OES_depth24 */                                                                           \
     /* GL_OES_depth32 */                                                                           \
@@ -369,6 +370,8 @@
     void getRenderbufferImage(GLenum target, GLenum format, GLenum type, void *pixels);            \
     /* GL_ANGLE_get_serialized_context_string */                                                   \
     /* GL_ANGLE_get_tex_level_parameter */                                                         \
+    /* GL_ANGLE_logic_op */                                                                        \
+    void logicOpANGLE(LogicalOperation opcodePacked);                                              \
     /* GL_ANGLE_lossy_etc_decode */                                                                \
     /* GL_ANGLE_memory_object_flags */                                                             \
     void texStorageMemFlags2D(TextureType targetPacked, GLsizei levels, GLenum internalFormat,     \
