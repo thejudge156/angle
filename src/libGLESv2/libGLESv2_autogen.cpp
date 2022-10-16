@@ -6160,7 +6160,7 @@ ANGLE_EXPORT void GL_APIENTRY glFrustum(GLdouble left,
     return GL_Frustum(left, right, bottom, top, zNear, zFar);
 }
 
-GLuint GL_APIENTRY glGenLists(GLsizei range)
+ANGLE_EXPORT GLuint GL_APIENTRY glGenLists(GLsizei range)
 {
     return GL_GenLists(range);
 }
@@ -6290,7 +6290,7 @@ ANGLE_EXPORT void GL_APIENTRY glInitNames()
     return GL_InitNames();
 }
 
-GLboolean GL_APIENTRY glIsList(GLuint list)
+ANGLE_EXPORT GLboolean GL_APIENTRY glIsList(GLuint list)
 {
     return GL_IsList(list);
 }
@@ -6696,7 +6696,7 @@ ANGLE_EXPORT void GL_APIENTRY glRectsv(const GLshort *v1, const GLshort *v2)
     return GL_Rectsv(v1, v2);
 }
 
-GLint GL_APIENTRY glRenderMode(GLenum mode)
+ANGLE_EXPORT GLint GL_APIENTRY glRenderMode(GLenum mode)
 {
     return GL_RenderMode(mode);
 }
@@ -7044,7 +7044,7 @@ ANGLE_EXPORT void GL_APIENTRY glVertex4sv(const GLshort *v)
 }
 
 // GL 1.1
-GLboolean GL_APIENTRY glAreTexturesResident(GLsizei n,
+ANGLE_EXPORT GLboolean GL_APIENTRY glAreTexturesResident(GLsizei n,
                                             const GLuint *textures,
                                             GLboolean *residences)
 {
@@ -7561,7 +7561,7 @@ ANGLE_EXPORT void GL_APIENTRY glGetQueryObjectiv(GLuint id, GLenum pname, GLint 
     return GL_GetQueryObjectiv(id, pname, params);
 }
 
-void *GL_APIENTRY glMapBuffer(GLenum target, GLenum access)
+ANGLE_EXPORT void *GL_APIENTRY glMapBuffer(GLenum target, GLenum access)
 {
     return GL_MapBuffer(target, access);
 }
@@ -8827,7 +8827,7 @@ ANGLE_EXPORT void GL_APIENTRY glBlitNamedFramebuffer(GLuint readFramebuffer,
                                    dstX0, dstY0, dstX1, dstY1, mask, filter);
 }
 
-GLenum GL_APIENTRY glCheckNamedFramebufferStatus(GLuint framebuffer, GLenum target)
+ANGLE_EXPORT GLenum GL_APIENTRY glCheckNamedFramebufferStatus(GLuint framebuffer, GLenum target)
 {
     return GL_CheckNamedFramebufferStatus(framebuffer, target);
 }
@@ -9338,12 +9338,12 @@ ANGLE_EXPORT void GL_APIENTRY glInvalidateNamedFramebufferSubData(GLuint framebu
                                                 width, height);
 }
 
-void *GL_APIENTRY glMapNamedBuffer(GLuint buffer, GLenum access)
+ANGLE_EXPORT void *GL_APIENTRY glMapNamedBuffer(GLuint buffer, GLenum access)
 {
     return GL_MapNamedBuffer(buffer, access);
 }
 
-void *GL_APIENTRY glMapNamedBufferRange(GLuint buffer,
+ANGLE_EXPORT void *GL_APIENTRY glMapNamedBufferRange(GLuint buffer,
                                         GLintptr offset,
                                         GLsizeiptr length,
                                         GLbitfield access)
@@ -9590,7 +9590,7 @@ ANGLE_EXPORT void GL_APIENTRY glTransformFeedbackBufferRange(GLuint xfb,
     return GL_TransformFeedbackBufferRange(xfb, index, buffer, offset, size);
 }
 
-GLboolean GL_APIENTRY glUnmapNamedBuffer(GLuint buffer)
+ANGLE_EXPORT GLboolean GL_APIENTRY glUnmapNamedBuffer(GLuint buffer)
 {
     return GL_UnmapNamedBuffer(buffer);
 }

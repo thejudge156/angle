@@ -21,7 +21,6 @@ angle_enable_d3d11 = false
 angle_enable_null = false
 angle_enable_metal = false
 
-angle_enable_gl_desktop_frontend = true
 angle_enable_desktop_glsl = true
 
 # Shader fix
