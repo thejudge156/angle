@@ -51,10 +51,51 @@ constexpr size_t kMaxPath = 1024;
 struct TracePerfParams final : public RenderTestParams
 {
     // Common default options
-    TracePerfParams()
+    TracePerfParams(const TraceInfo &traceInfoIn,
+                    GLESDriverType driverType,
+                    EGLenum platformType,
+                    EGLenum deviceType)
+        : traceInfo(traceInfoIn)
     {
+        majorVersion = traceInfo.contextClientMajorVersion;
+        minorVersion = traceInfo.contextClientMinorVersion;
+        windowWidth  = traceInfo.drawSurfaceWidth;
+        windowHeight = traceInfo.drawSurfaceHeight;
+        colorSpace   = traceInfo.drawSurfaceColorSpace;
+
         // Display the frame after every drawBenchmark invocation
         iterationsPerStep = 1;
+
+        driver                   = driverType;
+        eglParameters.renderer   = platformType;
+        eglParameters.deviceType = deviceType;
+
+        ASSERT(!gOffscreen || !gVsync);
+
+        if (gOffscreen)
+        {
+            surfaceType = SurfaceType::Offscreen;
+
+            if (!IsAndroid())
+            {
+                windowWidth /= 4;
+                windowHeight /= 4;
+            }
+        }
+        if (gVsync)
+        {
+            surfaceType = SurfaceType::WindowWithVSync;
+        }
+
+        // Force on features if we're validating serialization.
+        if (gTraceTestValidation)
+        {
+            // Enable limits when validating traces because we usually turn off capture.
+            eglParameters.enable(Feature::EnableCaptureLimits);
+
+            // This feature should also be enabled in capture to mirror the replay.
+            eglParameters.enable(Feature::ForceInitShaderVariables);
+        }
     }
 
     std::string story() const override
@@ -66,12 +107,6 @@ struct TracePerfParams final : public RenderTestParams
 
     TraceInfo traceInfo = {};
 };
-
-std::ostream &operator<<(std::ostream &os, const TracePerfParams &params)
-{
-    os << params.backendAndStory().substr(1);
-    return os;
-}
 
 class TracePerfTest : public ANGLERenderTest
 {
@@ -1333,10 +1368,6 @@ TracePerfTest::TracePerfTest(std::unique_ptr<const TracePerfParams> params)
         mEnableDebugCallback = false;
     }
 
-    ASSERT(mParams->surfaceType == SurfaceType::Window || gEnableAllTraceTests);
-    ASSERT(mParams->eglParameters.deviceType == EGL_PLATFORM_ANGLE_DEVICE_TYPE_HARDWARE_ANGLE ||
-           gEnableAllTraceTests);
-
     // We already swap in TracePerfTest::drawBenchmark, no need to swap again in the harness.
     disableTestHarnessSwap();
 
@@ -2025,17 +2056,17 @@ void TracePerfTest::onReplayDiscardFramebufferEXT(GLenum target,
 void TracePerfTest::swap()
 {
     // Capture a screenshot if enabled.
-    if (gScreenShotDir != nullptr && gSaveScreenshots && !mScreenshotSaved &&
-        static_cast<uint32_t>(gScreenShotFrame) == mCurrentIteration)
+    if (gScreenshotDir != nullptr && gSaveScreenshots && !mScreenshotSaved &&
+        static_cast<uint32_t>(gScreenshotFrame) == mCurrentIteration)
     {
         std::stringstream screenshotNameStr;
-        screenshotNameStr << gScreenShotDir << GetPathSeparator() << "angle" << mBackend << "_"
+        screenshotNameStr << gScreenshotDir << GetPathSeparator() << "angle" << mBackend << "_"
                           << mStory;
 
         // Add a marker to the name for any screenshot that isn't start frame
-        if (mStartFrame != static_cast<uint32_t>(gScreenShotFrame))
+        if (mStartFrame != static_cast<uint32_t>(gScreenshotFrame))
         {
-            screenshotNameStr << "_frame" << gScreenShotFrame;
+            screenshotNameStr << "_frame" << gScreenshotFrame;
         }
 
         screenshotNameStr << ".png";
@@ -2088,44 +2119,22 @@ void TracePerfTest::saveScreenshot(const std::string &screenshotName)
         printf("Saved screenshot: '%s'\n", screenshotName.c_str());
     }
 }
-
-TracePerfParams CombineWithTraceInfo(const TracePerfParams &in, const TraceInfo &traceInfo)
-{
-    TracePerfParams out = in;
-    out.traceInfo       = traceInfo;
-    out.majorVersion    = traceInfo.contextClientMajorVersion;
-    out.minorVersion    = traceInfo.contextClientMinorVersion;
-    out.windowWidth     = traceInfo.drawSurfaceWidth;
-    out.windowHeight    = traceInfo.drawSurfaceHeight;
-    out.colorSpace      = traceInfo.drawSurfaceColorSpace;
-    return out;
-}
-
-TracePerfParams CombineWithSurfaceType(const TracePerfParams &in, SurfaceType surfaceType)
-{
-    TracePerfParams out = in;
-    out.surfaceType     = surfaceType;
-
-    if (!IsAndroid() && surfaceType == SurfaceType::Offscreen)
-    {
-        out.windowWidth /= 4;
-        out.windowHeight /= 4;
-    }
-
-    // We track GPU time only in frame-rate-limited cases.
-    out.trackGpuTime = surfaceType == SurfaceType::WindowWithVSync;
-
-    return out;
-}
-
 }  // anonymous namespace
 
 using namespace params;
-using P  = TracePerfParams;
-using PV = std::vector<P>;
 
 void RegisterTraceTests()
 {
+    GLESDriverType driverType = GetDriverTypeFromString(gUseGL, GLESDriverType::AngleEGL);
+    GLenum platformType       = EGL_PLATFORM_ANGLE_TYPE_DEFAULT_ANGLE;
+    GLenum deviceType         = EGL_PLATFORM_ANGLE_DEVICE_TYPE_HARDWARE_ANGLE;
+    if (driverType == GLESDriverType::AngleEGL)
+    {
+        platformType = GetPlatformANGLETypeFromArg(gUseANGLE, EGL_PLATFORM_ANGLE_TYPE_VULKAN_ANGLE);
+        deviceType =
+            GetANGLEDeviceTypeFromArg(gUseANGLE, EGL_PLATFORM_ANGLE_DEVICE_TYPE_HARDWARE_ANGLE);
+    }
+
     char rootTracePath[kMaxPath] = {};
     if (!FindRootTraceTestDataPath(rootTracePath, kMaxPath))
     {
@@ -2162,53 +2171,19 @@ void RegisterTraceTests()
         traceInfos.push_back(traceInfo);
     }
 
-    std::vector<SurfaceType> surfaceTypes = {SurfaceType::Window};
-    if (gEnableAllTraceTests)
+    for (const TraceInfo &traceInfo : traceInfos)
     {
-        surfaceTypes.push_back(SurfaceType::Offscreen);
-        surfaceTypes.push_back(SurfaceType::WindowWithVSync);
-    }
+        const TracePerfParams params(traceInfo, driverType, platformType, deviceType);
 
-    std::vector<ModifierFunc<P>> renderers = {Vulkan<P>, Native<P>};
-    if (gEnableAllTraceTests)
-    {
-        if (!IsAndroid())
-        {
-            renderers.push_back(VulkanMockICD<P>);
-        }
-        renderers.push_back(VulkanSwiftShader<P>);
-    }
-
-    PV withTraceInfo   = CombineWithValues({P()}, traceInfos, CombineWithTraceInfo);
-    PV withSurfaceType = CombineWithValues(withTraceInfo, surfaceTypes, CombineWithSurfaceType);
-    PV withRenderer    = CombineWithFuncs(withSurfaceType, renderers);
-
-    for (const TracePerfParams &params : withRenderer)
-    {
         if (!IsPlatformAvailable(params))
         {
             continue;
         }
 
-        // Force on features if we're validating serialization.
-        TracePerfParams overrideParams = params;
-        if (gTraceTestValidation)
-        {
-            // Enable limits when validating traces because we usually turn off capture.
-            overrideParams.eglParameters.enable(Feature::EnableCaptureLimits);
-
-            // This feature should also be enabled in capture to mirror the replay.
-            overrideParams.eglParameters.enable(Feature::ForceInitShaderVariables);
-        }
-
-        auto factory = [overrideParams]() {
-            return new TracePerfTest(std::make_unique<TracePerfParams>(overrideParams));
+        auto factory = [params]() {
+            return new TracePerfTest(std::make_unique<TracePerfParams>(params));
         };
-        std::string paramName = testing::PrintToString(params);
-        std::stringstream testNameStr;
-        testNameStr << "Run/" << paramName;
-        std::string testName = testNameStr.str();
-        testing::RegisterTest("TracePerfTest", testName.c_str(), nullptr, paramName.c_str(),
-                              __FILE__, __LINE__, factory);
+        testing::RegisterTest("TraceTest", traceInfo.name, nullptr, nullptr, __FILE__, __LINE__,
+                              factory);
     }
 }

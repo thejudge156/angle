@@ -14,12 +14,12 @@
 #endif
 #include "ANGLEPerfTestArgs.h"
 #include "common/debug.h"
+#include "common/gl_enum_utils.h"
 #include "common/mathutil.h"
 #include "common/platform.h"
 #include "common/string_utils.h"
 #include "common/system_utils.h"
 #include "common/utilities.h"
-#include "libANGLE/capture/gl_enum_utils.h"
 #include "test_utils/runner/TestSuite.h"
 #include "third_party/perf/perf_test.h"
 #include "third_party/trace_event/trace_event.h"
@@ -225,6 +225,16 @@ double ComputeMean(const std::vector<double> &values)
     double mean = sum / static_cast<double>(values.size());
     return mean;
 }
+
+void FinishAndCheckForContextLoss()
+{
+    glFinish();
+    if (glGetError() == GL_CONTEXT_LOST)
+    {
+        FAIL() << "Context lost";
+    }
+}
+
 }  // anonymous namespace
 
 TraceEvent::TraceEvent(char phaseIn,
@@ -377,7 +387,7 @@ void ANGLEPerfTest::runTrial(double maxRunTime, int maxStepsToRun, RunTrialPolic
 
             if (runPolicy == RunTrialPolicy::FinishEveryStep)
             {
-                glFinish();
+                FinishAndCheckForContextLoss();
             }
 
             if (mRunning)
@@ -626,6 +636,15 @@ int ANGLEPerfTest::getStepAlignment() const
 {
     // Default: No special alignment rules.
     return 1;
+}
+
+RenderTestParams::RenderTestParams()
+{
+#if defined(ANGLE_DEBUG_LAYERS_ENABLED)
+    eglParameters.debugLayersEnabled = true;
+#else
+    eglParameters.debugLayersEnabled = false;
+#endif
 }
 
 std::string RenderTestParams::backend() const
@@ -1193,7 +1212,7 @@ void ANGLERenderTest::finishTest()
     if (mTestParams.eglParameters.deviceType != EGL_PLATFORM_ANGLE_DEVICE_TYPE_NULL_ANGLE &&
         !gNoFinish && !gRetraceMode)
     {
-        glFinish();
+        FinishAndCheckForContextLoss();
     }
 }
 

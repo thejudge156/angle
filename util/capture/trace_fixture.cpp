@@ -81,13 +81,46 @@ void LoadBinaryData(const char *fileName)
     fclose(fp);
 }
 
+EGLClientBuffer GetClientBuffer(EGLenum target, uintptr_t key)
+{
+    switch (target)
+    {
+        case EGL_GL_TEXTURE_2D:
+        case EGL_GL_TEXTURE_CUBE_MAP_POSITIVE_X:
+        case EGL_GL_TEXTURE_CUBE_MAP_NEGATIVE_X:
+        case EGL_GL_TEXTURE_CUBE_MAP_POSITIVE_Y:
+        case EGL_GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
+        case EGL_GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
+        case EGL_GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
+        case EGL_GL_TEXTURE_3D:
+        {
+            uintptr_t id = static_cast<uintptr_t>(gTextureMap[key]);
+            return reinterpret_cast<EGLClientBuffer>(id);
+        }
+        case EGL_GL_RENDERBUFFER:
+        {
+            uintptr_t id = static_cast<uintptr_t>(gRenderbufferMap[key]);
+            return reinterpret_cast<EGLClientBuffer>(id);
+        }
+        default:
+        {
+            const auto &iData = gClientBufferMap.find(key);
+            return iData != gClientBufferMap.end() ? iData->second : nullptr;
+        }
+    }
+}
+
 ValidateSerializedStateCallback gValidateSerializedStateCallback;
 std::unordered_map<GLuint, std::vector<GLint>> gInternalUniformLocationsMap;
+
+constexpr size_t kMaxClientArrays = 16;
 }  // namespace
 
 GLint **gUniformLocations;
-BlockIndexesMap gUniformBlockIndexes;
 GLuint gCurrentProgram = 0;
+
+// TODO(jmadill): Hide from the traces. http://anglebug.com/7753
+BlockIndexesMap gUniformBlockIndexes;
 
 void UpdateUniformLocation(GLuint program, const char *name, GLint location, GLint count)
 {
@@ -114,6 +147,13 @@ void UpdateUniformBlockIndex(GLuint program, const char *name, GLuint index)
 {
     gUniformBlockIndexes[program][index] = glGetUniformBlockIndex(program, name);
 }
+
+void UniformBlockBinding(GLuint program, GLuint uniformblockIndex, GLuint binding)
+{
+    glUniformBlockBinding(gShaderProgramMap[program],
+                          gUniformBlockIndexes[program][uniformblockIndex], binding);
+}
+
 void UpdateCurrentProgram(GLuint program)
 {
     gCurrentProgram = program;
@@ -124,6 +164,7 @@ uint8_t *gReadBuffer;
 uint8_t *gClientArrays[kMaxClientArrays];
 SyncResourceMap gSyncMap;
 ContextMap gContextMap;
+GLuint gShareContextId;
 
 GLuint *gBufferMap;
 GLuint *gFenceNVMap;
@@ -139,9 +180,14 @@ GLuint *gTextureMap;
 GLuint *gTransformFeedbackMap;
 GLuint *gVertexArrayMap;
 
+// TODO(jmadill): Consolidate. http://anglebug.com/7753
 ClientBufferMap gClientBufferMap;
 EGLImageMap gEGLImageMap;
 SurfaceMap gSurfaceMap;
+
+GLeglImageOES *gEGLImageMap2;
+EGLSurface *gSurfaceMap2;
+EGLContext *gContextMap2;
 
 void SetBinaryDataDecompressCallback(DecompressCallback decompressCallback,
                                      DeleteCallback deleteCallback)
@@ -155,11 +201,51 @@ void SetBinaryDataDir(const char *dataDir)
     gBinaryDataDir = dataDir;
 }
 
+template <typename T>
+T *AllocateZeroedValues(size_t count)
+{
+    T *mem = new T[count + 1];
+    memset(mem, 0, sizeof(T) * (count + 1));
+    return mem;
+}
+
 GLuint *AllocateZeroedUints(size_t count)
 {
-    GLuint *mem = new GLuint[count + 1];
-    memset(mem, 0, sizeof(GLuint) * (count + 1));
-    return mem;
+    return AllocateZeroedValues<GLuint>(count);
+}
+
+void InitializeReplay2(const char *binaryDataFileName,
+                       size_t maxClientArraySize,
+                       size_t readBufferSize,
+                       GLuint contextId,
+                       uint32_t maxBuffer,
+                       uint32_t maxContext,
+                       uint32_t maxFenceNV,
+                       uint32_t maxFramebuffer,
+                       uint32_t maxImage,
+                       uint32_t maxMemoryObject,
+                       uint32_t maxProgramPipeline,
+                       uint32_t maxQuery,
+                       uint32_t maxRenderbuffer,
+                       uint32_t maxSampler,
+                       uint32_t maxSemaphore,
+                       uint32_t maxShaderProgram,
+                       uint32_t maxSurface,
+                       uint32_t maxTexture,
+                       uint32_t maxTransformFeedback,
+                       uint32_t maxVertexArray)
+{
+    InitializeReplay(binaryDataFileName, maxClientArraySize, readBufferSize, maxBuffer, maxFenceNV,
+                     maxFramebuffer, maxMemoryObject, maxProgramPipeline, maxQuery, maxRenderbuffer,
+                     maxSampler, maxSemaphore, maxShaderProgram, maxTexture, maxTransformFeedback,
+                     maxVertexArray);
+
+    gContextMap2  = AllocateZeroedValues<EGLContext>(maxContext);
+    gEGLImageMap2 = AllocateZeroedValues<EGLImage>(maxImage);
+    gSurfaceMap2  = AllocateZeroedValues<EGLSurface>(maxSurface);
+
+    gShareContextId         = contextId;
+    gContextMap2[contextId] = eglGetCurrentContext();
 }
 
 void InitializeReplay(const char *binaryDataFileName,
@@ -204,6 +290,8 @@ void InitializeReplay(const char *binaryDataFileName,
 
     gUniformLocations = new GLint *[maxShaderProgram + 1];
     memset(gUniformLocations, 0, sizeof(GLint *) * (maxShaderProgram + 1));
+
+    gContextMap[0] = EGL_NO_CONTEXT;
 }
 
 void FinishReplay()
@@ -215,6 +303,8 @@ void FinishReplay()
     delete[] gReadBuffer;
 
     delete[] gBufferMap;
+    delete[] gContextMap2;
+    delete[] gEGLImageMap2;
     delete[] gRenderbufferMap;
     delete[] gTextureMap;
     delete[] gFramebufferMap;
@@ -225,6 +315,7 @@ void FinishReplay()
     delete[] gQueryMap;
     delete[] gSamplerMap;
     delete[] gSemaphoreMap;
+    delete[] gSurfaceMap2;
     delete[] gTransformFeedbackMap;
     delete[] gVertexArrayMap;
 
@@ -346,52 +437,100 @@ void SetTextureID(GLuint id)
     SetResourceID(gTextureMap, id);
 }
 
-void UpdateClientBuffer(EGLClientBuffer key, EGLClientBuffer data)
-{
-    gClientBufferMap[key] = data;
-}
-
-EGLClientBuffer GetClientBuffer(EGLenum target, uint64_t key)
-{
-    switch (target)
-    {
-        case EGL_GL_TEXTURE_2D:
-        case EGL_GL_TEXTURE_CUBE_MAP_POSITIVE_X:
-        case EGL_GL_TEXTURE_CUBE_MAP_NEGATIVE_X:
-        case EGL_GL_TEXTURE_CUBE_MAP_POSITIVE_Y:
-        case EGL_GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
-        case EGL_GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
-        case EGL_GL_TEXTURE_CUBE_MAP_NEGATIVE_Z:
-        case EGL_GL_TEXTURE_3D:
-        {
-            GLuint64 id = gTextureMap[key];
-            return reinterpret_cast<EGLClientBuffer>(id);
-        }
-        case EGL_GL_RENDERBUFFER:
-        {
-            GLuint64 id = gRenderbufferMap[key];
-            return reinterpret_cast<EGLClientBuffer>(id);
-        }
-        default:
-        {
-            const auto &iData = gClientBufferMap.find(reinterpret_cast<EGLClientBuffer>(key));
-            return iData != gClientBufferMap.end() ? iData->second : nullptr;
-        }
-    }
-}
-
-GLeglImageOES GetEGLImage(uintptr_t key)
-{
-    auto iData = gEGLImageMap.find(key);
-    return iData != gEGLImageMap.end() ? iData->second : nullptr;
-}
-
 void ValidateSerializedState(const char *serializedState, const char *fileName, uint32_t line)
 {
     if (gValidateSerializedStateCallback)
     {
         gValidateSerializedStateCallback(serializedState, fileName, line);
     }
+}
+
+void MapBufferRange(GLenum target,
+                    GLintptr offset,
+                    GLsizeiptr length,
+                    GLbitfield access,
+                    GLuint buffer)
+{
+    gMappedBufferData[gBufferMap[buffer]] = glMapBufferRange(target, offset, length, access);
+}
+
+void MapBufferRangeEXT(GLenum target,
+                       GLintptr offset,
+                       GLsizeiptr length,
+                       GLbitfield access,
+                       GLuint buffer)
+{
+    gMappedBufferData[gBufferMap[buffer]] = glMapBufferRangeEXT(target, offset, length, access);
+}
+
+void MapBufferOES(GLenum target, GLbitfield access, GLuint buffer)
+{
+    gMappedBufferData[gBufferMap[buffer]] = glMapBufferOES(target, access);
+}
+
+void CreateShader(GLenum shaderType, GLuint shaderProgram)
+{
+    gShaderProgramMap[shaderProgram] = glCreateShader(shaderType);
+}
+
+void CreateProgram(GLuint shaderProgram)
+{
+    gShaderProgramMap[shaderProgram] = glCreateProgram();
+}
+
+void CreateShaderProgramv(GLenum type,
+                          GLsizei count,
+                          const GLchar *const *strings,
+                          GLuint shaderProgram)
+{
+    gShaderProgramMap[shaderProgram] = glCreateShaderProgramv(type, count, strings);
+}
+
+void FenceSync(GLenum condition, GLbitfield flags, uintptr_t fenceSync)
+{
+    gSyncMap[fenceSync] = glFenceSync(condition, flags);
+}
+
+void CreateEGLImage(EGLDisplay dpy,
+                    EGLContext ctx,
+                    EGLenum target,
+                    uintptr_t buffer,
+                    const EGLAttrib *attrib_list,
+                    GLuint imageID)
+{
+    EGLClientBuffer clientBuffer = GetClientBuffer(target, buffer);
+    gEGLImageMap2[imageID]       = eglCreateImage(dpy, ctx, target, clientBuffer, attrib_list);
+}
+
+void CreateEGLImageKHR(EGLDisplay dpy,
+                       EGLContext ctx,
+                       EGLenum target,
+                       uintptr_t buffer,
+                       const EGLint *attrib_list,
+                       GLuint imageID)
+{
+    EGLClientBuffer clientBuffer = GetClientBuffer(target, buffer);
+    gEGLImageMap2[imageID]       = eglCreateImageKHR(dpy, ctx, target, clientBuffer, attrib_list);
+}
+
+void CreatePbufferSurface(EGLDisplay dpy,
+                          EGLConfig config,
+                          const EGLint *attrib_list,
+                          GLuint surfaceID)
+{
+    gSurfaceMap2[surfaceID] = eglCreatePbufferSurface(dpy, config, attrib_list);
+}
+
+void CreateNativeClientBufferANDROID(const EGLint *attrib_list, uintptr_t clientBuffer)
+{
+    gClientBufferMap[clientBuffer] = eglCreateNativeClientBufferANDROID(attrib_list);
+}
+
+void CreateContext(GLuint contextID)
+{
+    EGLContext shareContext = gContextMap[gShareContextId];
+    EGLContext context      = eglCreateContext(nullptr, nullptr, shareContext, nullptr);
+    gContextMap2[contextID] = context;
 }
 
 ANGLE_REPLAY_EXPORT PFNEGLCREATEIMAGEPROC r_eglCreateImage;

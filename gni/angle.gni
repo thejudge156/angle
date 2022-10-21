@@ -89,6 +89,14 @@ if (angle_has_build) {
   }
 }
 
+if (!defined(checkout_angle_internal)) {
+  checkout_angle_internal = false
+}
+
+if (!defined(checkout_angle_restricted_traces)) {
+  checkout_angle_restricted_traces = false
+}
+
 # Subdirectory to place data files (e.g. layer JSON files).
 angle_data_dir = "angledata"
 
@@ -582,7 +590,7 @@ template("angle_trace") {
     defines = [ "ANGLE_REPLAY_IMPLEMENTATION" ]
     suppressed_configs += [ "$angle_root:constructor_and_destructor_warnings" ]
 
-    deps = [ "$angle_root:angle_trace_fixture" ]
+    deps = [ "$angle_root/util:angle_trace_fixture" ]
 
     if (is_android) {
       libs = [ "log" ]
