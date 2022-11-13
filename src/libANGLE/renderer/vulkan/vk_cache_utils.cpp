@@ -1307,9 +1307,11 @@ angle::Result InitializeRenderPassFromDesc(ContextVk *contextVk,
     applicationSubpass->preserveAttachmentCount = 0;
     applicationSubpass->pPreserveAttachments    = nullptr;
 
-    // Specify rasterization order for color on the subpass.  This is required when the
-    // corresponding flag is set on the pipeline.
-    if (contextVk->getFeatures().supportsRasterizationOrderAttachmentAccess.enabled)
+    // Specify rasterization order for color on the subpass when available and
+    // there is framebuffer fetch.  This is required when the corresponding
+    // flag is set on the pipeline.
+    if (contextVk->getFeatures().supportsRasterizationOrderAttachmentAccess.enabled &&
+        desc.hasFramebufferFetch())
     {
         for (VkSubpassDescription &subpass : subpassDesc)
         {
@@ -2918,7 +2920,7 @@ angle::Result GraphicsPipelineDesc::initializePipeline(Context *context,
                                                        GraphicsPipelineSubset subset,
                                                        const RenderPass &compatibleRenderPass,
                                                        const PipelineLayout &pipelineLayout,
-                                                       const ShaderAndSerialMap &shaders,
+                                                       const ShaderModuleMap &shaders,
                                                        const SpecializationConstants &specConsts,
                                                        Pipeline *pipelineOut,
                                                        CacheLookUpFeedback *feedbackOut) const
@@ -3174,7 +3176,7 @@ void GraphicsPipelineDesc::initializePipelineVertexInputState(
 
 void GraphicsPipelineDesc::initializePipelineShadersState(
     Context *context,
-    const ShaderAndSerialMap &shaders,
+    const ShaderModuleMap &shaders,
     const SpecializationConstants &specConsts,
     GraphicsPipelineShadersVulkanStructs *stateOut,
     GraphicsPipelineDynamicStateList *dynamicStateListOut) const
@@ -3183,7 +3185,7 @@ void GraphicsPipelineDesc::initializePipelineShadersState(
                                  &stateOut->specializationInfo);
 
     // Vertex shader is always expected to be present.
-    const ShaderModule &vertexModule = shaders[gl::ShaderType::Vertex].get().get();
+    const ShaderModule &vertexModule = shaders[gl::ShaderType::Vertex].get();
     ASSERT(vertexModule.valid());
     VkPipelineShaderStageCreateInfo vertexStage = {};
     SetPipelineShaderStageInfo(VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -3191,10 +3193,10 @@ void GraphicsPipelineDesc::initializePipelineShadersState(
                                stateOut->specializationInfo, &vertexStage);
     stateOut->shaderStages.push_back(vertexStage);
 
-    const ShaderAndSerialPointer &tessControlPointer = shaders[gl::ShaderType::TessControl];
+    const ShaderModulePointer &tessControlPointer = shaders[gl::ShaderType::TessControl];
     if (tessControlPointer.valid())
     {
-        const ShaderModule &tessControlModule            = tessControlPointer.get().get();
+        const ShaderModule &tessControlModule            = tessControlPointer.get();
         VkPipelineShaderStageCreateInfo tessControlStage = {};
         SetPipelineShaderStageInfo(VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
                                    VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT,
@@ -3203,10 +3205,10 @@ void GraphicsPipelineDesc::initializePipelineShadersState(
         stateOut->shaderStages.push_back(tessControlStage);
     }
 
-    const ShaderAndSerialPointer &tessEvaluationPointer = shaders[gl::ShaderType::TessEvaluation];
+    const ShaderModulePointer &tessEvaluationPointer = shaders[gl::ShaderType::TessEvaluation];
     if (tessEvaluationPointer.valid())
     {
-        const ShaderModule &tessEvaluationModule            = tessEvaluationPointer.get().get();
+        const ShaderModule &tessEvaluationModule            = tessEvaluationPointer.get();
         VkPipelineShaderStageCreateInfo tessEvaluationStage = {};
         SetPipelineShaderStageInfo(VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
                                    VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT,
@@ -3215,10 +3217,10 @@ void GraphicsPipelineDesc::initializePipelineShadersState(
         stateOut->shaderStages.push_back(tessEvaluationStage);
     }
 
-    const ShaderAndSerialPointer &geometryPointer = shaders[gl::ShaderType::Geometry];
+    const ShaderModulePointer &geometryPointer = shaders[gl::ShaderType::Geometry];
     if (geometryPointer.valid())
     {
-        const ShaderModule &geometryModule            = geometryPointer.get().get();
+        const ShaderModule &geometryModule            = geometryPointer.get();
         VkPipelineShaderStageCreateInfo geometryStage = {};
         SetPipelineShaderStageInfo(VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
                                    VK_SHADER_STAGE_GEOMETRY_BIT, geometryModule.getHandle(),
@@ -3227,10 +3229,10 @@ void GraphicsPipelineDesc::initializePipelineShadersState(
     }
 
     // Fragment shader is optional.
-    const ShaderAndSerialPointer &fragmentPointer = shaders[gl::ShaderType::Fragment];
+    const ShaderModulePointer &fragmentPointer = shaders[gl::ShaderType::Fragment];
     if (fragmentPointer.valid() && !mShaders.shaders.bits.rasterizerDiscardEnable)
     {
-        const ShaderModule &fragmentModule            = fragmentPointer.get().get();
+        const ShaderModule &fragmentModule            = fragmentPointer.get();
         VkPipelineShaderStageCreateInfo fragmentStage = {};
         SetPipelineShaderStageInfo(VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
                                    VK_SHADER_STAGE_FRAGMENT_BIT, fragmentModule.getHandle(),
@@ -3443,9 +3445,17 @@ void GraphicsPipelineDesc::initializePipelineFragmentOutputState(
             mSharedNonVertexInput.renderPass.getColorUnresolveAttachmentMask().count());
     }
 
-    // Specify rasterization order for color when available.  This allows implementation of coherent
-    // framebuffer fetch / advanced blend.
-    if (context->getFeatures().supportsRasterizationOrderAttachmentAccess.enabled)
+    // Specify rasterization order for color when available and there is
+    // framebuffer fetch.  This allows implementation of coherent framebuffer
+    // fetch / advanced blend.
+    //
+    // We can do better by setting the bit only when there is coherent
+    // framebuffer fetch, but getRenderPassFramebufferFetchMode does not
+    // distinguish coherent / non-coherent yet.  Also, once an app uses
+    // framebufer fetch, we treat all render passes as if they use framebuffer
+    // fetch.  This check is not very effective.
+    if (context->getFeatures().supportsRasterizationOrderAttachmentAccess.enabled &&
+        getRenderPassFramebufferFetchMode())
     {
         stateOut->blendState.flags |=
             VK_PIPELINE_COLOR_BLEND_STATE_CREATE_RASTERIZATION_ORDER_ATTACHMENT_ACCESS_BIT_EXT;
@@ -3929,9 +3939,9 @@ void GraphicsPipelineDesc::updateDepthFunc(GraphicsPipelineTransitionBits *trans
 }
 
 void GraphicsPipelineDesc::updateSurfaceRotation(GraphicsPipelineTransitionBits *transition,
-                                                 const SurfaceRotation surfaceRotation)
+                                                 bool isRotatedAspectRatio)
 {
-    SetBitField(mShaders.shaders.bits.surfaceRotation, IsRotatedAspectRatio(surfaceRotation));
+    SetBitField(mShaders.shaders.bits.surfaceRotation, isRotatedAspectRatio);
     transition->set(ANGLE_GET_TRANSITION_BIT(mShaders.shaders.bits));
 }
 
@@ -6182,7 +6192,7 @@ angle::Result GraphicsPipelineCache<Hash>::createPipeline(
     PipelineCacheAccess *pipelineCache,
     const vk::RenderPass &compatibleRenderPass,
     const vk::PipelineLayout &pipelineLayout,
-    const vk::ShaderAndSerialMap &shaders,
+    const vk::ShaderModuleMap &shaders,
     const vk::SpecializationConstants &specConsts,
     PipelineSource source,
     const vk::GraphicsPipelineDesc &desc,
@@ -6247,7 +6257,7 @@ template angle::Result GraphicsPipelineCache<GraphicsPipelineDescCompleteHash>::
     PipelineCacheAccess *pipelineCache,
     const vk::RenderPass &compatibleRenderPass,
     const vk::PipelineLayout &pipelineLayout,
-    const vk::ShaderAndSerialMap &shaders,
+    const vk::ShaderModuleMap &shaders,
     const vk::SpecializationConstants &specConsts,
     PipelineSource source,
     const vk::GraphicsPipelineDesc &desc,

@@ -490,6 +490,8 @@
 7683 PIXEL4ORXL VULKAN : PixelLocalStorageTest.MaxCombinedDrawBuffersAndPLSPlanes/* = SKIP
 7683 PIXEL4ORXL VULKAN : PixelLocalStorageTest.BlendAndColorMask/* = SKIP
 7684 PIXEL4ORXL VULKAN : PixelLocalStorageTest.MipMapLevels/* = SKIP
+7771 PIXEL4ORXL VULKAN : PixelLocalStorageTest.DrawStateReset/* = SKIP
+7771 PIXEL4ORXL VULKAN : PixelLocalStorageTestES31.DrawStateReset/* = SKIP
 
 6167 NEXUS5X GLES : DepthStencilTestES3.FramebufferClearThenStencilAttachedThenStencilTestState/* = SKIP
 6167 NEXUS5X GLES : DepthStencilTestES3.FramebufferClearThenStencilTestStateThenStencilAttached/* = SKIP
@@ -584,6 +586,9 @@
 // Crashing in Mali shader compiler
 217922015 PIXEL6 VULKAN : GLSLTest_ES3.NestedPowFromUniform/* = SKIP
 
+7771 PIXEL6 VULKAN : PixelLocalStorageTest.DrawStateReset/* = SKIP
+7771 PIXEL6 VULKAN : PixelLocalStorageTestES31.DrawStateReset/* = SKIP
+
 // iOS
 7653 IOS : BufferDataTestES3.DrawWithNotCallingBufferData/ES3_OpenGL = SKIP
 7653 IOS : DepthStencilFormatsTest.DepthStencilReadback_DepthStencil/ES2_OpenGL = SKIP
@@ -634,7 +639,7 @@
 7653 IOS : TransformFeedbackTest.RenderOnceChangeXfbBufferRenderAgain/ES3_OpenGL = SKIP
 7653 IOS : VertexAttributeTestES3.emptyBuffer/ES3_OpenGL = SKIP
 
-7756 IOS : PixelLocalStorageTest.ClearData/ES3_OpenGL_EmulatePixelLocalStorage* = SKIP
+7756 IOS : PixelLocalStorageTest.ClearState/ES3_OpenGL_EmulatePixelLocalStorage* = SKIP
 7756 IOS : PixelLocalStorageTest.Coherency/ES3_OpenGL_EmulatePixelLocalStorage* = SKIP
 7756 IOS : PixelLocalStorageTest.ForgetBarrier/ES3_OpenGL_EmulatePixelLocalStorage* = SKIP
 7756 IOS : PixelLocalStorageTest.FunctionArguments/ES3_OpenGL_EmulatePixelLocalStorage* = SKIP
@@ -669,8 +674,15 @@
 5491 IOS : IOSurfaceClientBufferTest.MakeCurrent/ES2_OpenGL = SKIP
 5491 IOS : IOSurfaceClientBufferTest.MakeCurrent/ES3_OpenGL = SKIP
 
+4452 MAC AMD OPENGL : ClipDistanceTest.EachClipDistance/ES2_OpenGL = SKIP
+4452 MAC AMD OPENGL : ClipDistanceTest.EachClipDistance/ES3_OpenGL = SKIP
+
 7768 IOS : ClipDistanceTest.OneClipDistance/ES2_OpenGL = SKIP
 7768 IOS : ClipDistanceTest.OneClipDistance/ES3_OpenGL = SKIP
+7768 IOS : ClipDistanceTest.EachClipDistance/ES2_OpenGL = SKIP
+7768 IOS : ClipDistanceTest.EachClipDistance/ES3_OpenGL = SKIP
+7768 IOS : ClipDistanceTest.Octagon/ES2_OpenGL = SKIP
+7768 IOS : ClipDistanceTest.Octagon/ES3_OpenGL = SKIP
 7768 IOS : ClipDistanceTest.ThreeClipDistances/ES2_OpenGL = SKIP
 7768 IOS : ClipDistanceTest.ThreeClipDistances/ES3_OpenGL = SKIP
 7768 IOS : ClipDistanceTest.ThreeClipDistancesRedeclared/ES2_OpenGL = SKIP

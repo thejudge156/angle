@@ -176,6 +176,9 @@ config("internal_config") {
     defines += [ "ANGLE_ENABLE_TRACE_EVENTS=1" ]
   }
 
+  # Checks that unwind backtrace support for Android is enabled only for debug mode.
+  assert(is_debug || !angle_enable_unwind_backtrace_support)
+
   if (is_chromeos) {
     defines += [ "ANGLE_PLATFORM_CHROMEOS" ]
   }
@@ -726,15 +729,6 @@ template("translator_lib") {
         "${angle_spirv_tools_dir}:spvtools_headers",
         "${angle_spirv_tools_dir}:spvtools_val",
       ]
-
-      if (angle_enable_spirv_gen_through_glslang) {
-        defines += [ "ANGLE_ENABLE_SPIRV_GENERATION_THROUGH_GLSLANG" ]
-        sources += [ "src/compiler/translator/glslang_wrapper.cpp" ]
-        deps += [
-          "${angle_glslang_dir}:glslang_default_resource_limits_sources",
-          "${angle_glslang_dir}:glslang_lib_sources",
-        ]
-      }
     }
 
     public_deps = [
@@ -849,10 +843,6 @@ config("angle_backend_config") {
     defines += [ "ANGLE_EXPOSE_NON_CONFORMANT_EXTENSIONS_AND_VERSIONS" ]
   }
 
-  if (angle_use_spirv_gen_through_glslang) {
-    defines += [ "ANGLE_USE_SPIRV_GENERATION_THROUGH_GLSLANG" ]
-  }
-
   configs = []
 
   if (angle_enable_d3d11) {
@@ -938,7 +928,7 @@ angle_source_set("libANGLE_headers") {
   public_configs += [ ":libANGLE_config" ]
 }
 
-# Don't even try to build glslang if Metal and Vulkan are disabled.
+# Don't even try to build the SPIR-V transformer if Metal and Vulkan are disabled.
 if (angle_enable_vulkan || angle_enable_metal) {
   angle_source_set("angle_glslang_wrapper") {
     sources = [

@@ -18,6 +18,7 @@
 #include "common/FixedVector.h"
 #include "common/Optional.h"
 #include "common/PackedEnums.h"
+#include "common/backtrace_utils.h"
 #include "common/debug.h"
 #include "libANGLE/Error.h"
 #include "libANGLE/Observer.h"
@@ -472,12 +473,10 @@ angle::Result AllocateBufferMemoryWithRequirements(Context *context,
                                                    VkMemoryPropertyFlags *memoryPropertyFlagsOut,
                                                    DeviceMemory *deviceMemoryOut);
 
-using ShaderAndSerial = ObjectAndSerial<ShaderModule>;
-
-angle::Result InitShaderAndSerial(Context *context,
-                                  ShaderAndSerial *shaderAndSerial,
-                                  const uint32_t *shaderCode,
-                                  size_t shaderCodeSize);
+angle::Result InitShaderModule(Context *context,
+                               ShaderModule *shaderModule,
+                               const uint32_t *shaderCode,
+                               size_t shaderCodeSize);
 
 gl::TextureType Get2DTextureType(uint32_t layerCount, GLint samples);
 
@@ -804,8 +803,8 @@ ANGLE_DISABLE_STRUCT_PADDING_WARNINGS
 template <typename T>
 using SpecializationConstantMap = angle::PackedEnumMap<sh::vk::SpecializationConstantId, T>;
 
-using ShaderAndSerialPointer = BindingPointer<ShaderAndSerial>;
-using ShaderAndSerialMap     = gl::ShaderMap<ShaderAndSerialPointer>;
+using ShaderModulePointer = BindingPointer<ShaderModule>;
+using ShaderModuleMap     = gl::ShaderMap<ShaderModulePointer>;
 
 void MakeDebugUtilsLabel(GLenum source, const char *marker, VkDebugUtilsLabelEXT *label);
 

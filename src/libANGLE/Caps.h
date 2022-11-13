@@ -165,6 +165,9 @@ struct Limitations
     bool compressedBaseMipLevelMultipleOfFour = false;
 
     bool limitWebglMaxTextureSizeTo4096 = false;
+
+    // When clip and cull distances are used simultaneously, D3D11 can support up to four of each.
+    bool limitSimultaneousClipAndCullDistanceUsage = false;
 };
 
 struct TypePrecision
@@ -378,6 +381,9 @@ struct Caps
     GLuint maxPixelLocalStoragePlanes                       = 0;
     GLuint maxColorAttachmentsWithActivePixelLocalStorage   = 0;
     GLuint maxCombinedDrawBuffersAndPixelLocalStoragePlanes = 0;
+
+    // GL_EXT_shader_pixel_local_storage.
+    GLuint maxShaderPixelLocalStorageFastSizeEXT = 0;
 
     // GLES1 emulation: Caps for ES 1.1. Taken from Table 6.20 / 6.22 in the OpenGL ES 1.1 spec.
     GLuint maxMultitextureUnits                 = 0;

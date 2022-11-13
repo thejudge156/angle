@@ -114,6 +114,7 @@ class TracePerfTest : public ANGLERenderTest
   public:
     TracePerfTest(std::unique_ptr<const TracePerfParams> params);
 
+    void startTest() override;
     void initializeBenchmark() override;
     void destroyBenchmark() override;
     void drawBenchmark() override;
@@ -139,6 +140,7 @@ class TracePerfTest : public ANGLERenderTest
                                     const EGLint *attrib_list);
     EGLBoolean onEglDestroyImage(EGLDisplay display, EGLImage image);
     EGLBoolean onEglDestroyImageKHR(EGLDisplay display, EGLImage image);
+    EGLint onEglGetError();
 
     void onReplayFramebufferChange(GLenum target, GLuint framebuffer);
     void onReplayInvalidateFramebuffer(GLenum target,
@@ -278,6 +280,11 @@ EGLBoolean KHRONOS_APIENTRY EglDestroyImage(EGLDisplay display, EGLImage image)
 EGLBoolean KHRONOS_APIENTRY EglDestroyImageKHR(EGLDisplay display, EGLImage image)
 {
     return gCurrentTracePerfTest->onEglDestroyImageKHR(display, image);
+}
+
+EGLint KHRONOS_APIENTRY EglGetError()
+{
+    return gCurrentTracePerfTest->onEglGetError();
 }
 
 void KHRONOS_APIENTRY BindFramebufferProc(GLenum target, GLuint framebuffer)
@@ -592,6 +599,10 @@ angle::GenericProc KHRONOS_APIENTRY TraceLoadProc(const char *procName)
     {
         return reinterpret_cast<angle::GenericProc>(EglDestroyImageKHR);
     }
+    if (strcmp(procName, "eglGetError") == 0)
+    {
+        return reinterpret_cast<angle::GenericProc>(EglGetError);
+    }
 
     // GLES
     if (strcmp(procName, "glBindFramebuffer") == 0)
@@ -766,6 +777,11 @@ TracePerfTest::TracePerfTest(std::unique_ptr<const TracePerfParams> params)
     {
         failTest("Failed to load trace json.");
         return;
+    }
+
+    for (std::string extension : mParams->traceInfo.requiredExtensions)
+    {
+        addExtensionPrerequisite(extension);
     }
 
     if (IsWindows() && IsIntel() && mParams->isVulkan() && traceNameIs("manhattan_10"))
@@ -1380,6 +1396,12 @@ TracePerfTest::TracePerfTest(std::unique_ptr<const TracePerfParams> params)
     }
 }
 
+void TracePerfTest::startTest()
+{
+    // runTrial() must align to frameCount()
+    ASSERT(mCurrentFrame == mStartFrame);
+}
+
 void TracePerfTest::initializeBenchmark()
 {
     const TraceInfo &traceInfo = mParams->traceInfo;
@@ -1567,7 +1589,7 @@ void TracePerfTest::drawBenchmark()
     }
 
     char frameName[32];
-    sprintf(frameName, "Frame %u", mCurrentFrame);
+    snprintf(frameName, sizeof(frameName), "Frame %u", mCurrentFrame);
     beginInternalTraceEvent(frameName);
 
     startGpuTimer();
@@ -1667,7 +1689,7 @@ void TracePerfTest::drawBenchmark()
         if (endResultAvailable == GL_TRUE)
         {
             char fboName[32];
-            sprintf(fboName, "FBO %u", query.framebuffer);
+            snprintf(fboName, sizeof(fboName), "FBO %u", query.framebuffer);
 
             GLint64 beginTimestamp = 0;
             glGetQueryObjecti64vEXT(query.beginTimestampQuery, GL_QUERY_RESULT, &beginTimestamp);
@@ -1784,6 +1806,11 @@ EGLBoolean TracePerfTest::onEglDestroyImage(EGLDisplay display, EGLImage image)
 EGLBoolean TracePerfTest::onEglDestroyImageKHR(EGLDisplay display, EGLImage image)
 {
     return getGLWindow()->destroyImageKHR(image);
+}
+
+EGLint TracePerfTest::onEglGetError()
+{
+    return getGLWindow()->getEGLError();
 }
 
 // Triggered when the replay calls glBindFramebuffer.
