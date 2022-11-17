@@ -3410,16 +3410,13 @@ void Context::initVersionStrings()
     std::ostringstream shadingLanguageVersionString;
     if (getClientType() == EGL_OPENGL_ES_API)
     {
-        shadingLanguageVersionString << "OpenGL ES GLSL ES ";
+        shadingLanguageVersionString << "3.1.0";
     }
     else
     {
         ASSERT(getClientType() == EGL_OPENGL_API);
-        shadingLanguageVersionString << "OpenGL GLSL ";
+        shadingLanguageVersionString << "4.6.0";
     }
-    shadingLanguageVersionString << (clientVersion.major == 2 ? 1 : clientVersion.major) << "."
-                                 << clientVersion.minor << "0 (ANGLE "
-                                 << angle::GetANGLEVersionString() << ")";
     mShadingLanguageString = MakeStaticString(shadingLanguageVersionString.str());
 }
 
